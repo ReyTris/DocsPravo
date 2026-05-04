@@ -1,0 +1,227 @@
+// Prisma schema для PravoLetter
+// Расширяется по мере роста — для MVP покрывает users, documents, analyses, payments, deadlines, audit.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Users & Auth ----------
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String?
+  phone        String?
+  role         UserRole @default(user)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  documents     Document[]
+  payments      Payment[]
+  refreshTokens RefreshToken[]
+  consents      Consent[]
+
+  @@index([email])
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+  userAgent String?
+  ip        String?
+
+  @@index([userId])
+}
+
+// Согласие на обработку ПД (обязательно по 152-ФЗ)
+model Consent {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      ConsentKind
+  version   String
+  givenAt   DateTime @default(now())
+  revokedAt DateTime?
+  ip        String?
+
+  @@index([userId, kind])
+}
+
+enum ConsentKind {
+  pd_processing
+  offer
+  marketing
+}
+
+// ---------- Documents ----------
+
+model Document {
+  id            String         @id @default(uuid()) @db.Uuid
+  userId        String?        @db.Uuid
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status        DocumentStatus @default(uploaded)
+
+  filename      String
+  contentType   String
+  sizeBytes     Int
+  storageKey    String         @unique // путь в Object Storage
+  fileHash      String? // sha256 — для дедупликации и forensics
+
+  ocrText       String?        @db.Text
+  ocrCostKopecks Int?
+
+  // Денормализация для быстрого списка
+  detectedType  String?
+  essence       String?
+  criticalDeadline DateTime?
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  // Автоудаление через 30 дней (cron)
+  expiresAt     DateTime
+
+  analyses      Analysis[]
+  payments      Payment[]
+  deadlines     Deadline[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+enum DocumentStatus {
+  uploaded
+  ocr_processing
+  classify_processing
+  extract_processing
+  analyze_processing
+  ready
+  stop_redirect_lawyer
+  unsupported
+  error
+}
+
+// ---------- Analyses ----------
+
+model Analysis {
+  id              String   @id @default(uuid()) @db.Uuid
+  documentId      String   @db.Uuid
+  document        Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  // Полный JSON-результат пайплайна (PipelineResult из @pravoletter/schemas)
+  result          Json
+  // Для быстрых выборок — продублированы ключевые поля
+  status          String
+  detectedType    String?
+  classifyConfidence Float?
+
+  // Версионирование — для разбора инцидентов
+  pipelineVersion String
+  promptVersions  Json     // { classify: "v1", extract: "v1", analyze: "v1" }
+  modelName       String
+
+  costKopecks     Int?
+  durationMs      Int?
+
+  createdAt       DateTime @default(now())
+
+  @@index([documentId, createdAt])
+}
+
+// ---------- Payments ----------
+
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  userId            String        @db.Uuid
+  user              User          @relation(fields: [userId], references: [id])
+  documentId        String?       @db.Uuid
+  document          Document?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  amountKopecks     Int
+  currency          String        @default("RUB")
+  product           String        // full_analysis, urgent_analysis, subscription_basic, subscription_pro
+  status            PaymentStatus @default(pending)
+
+  ukassaId          String?       @unique
+  ukassaIdempotency String        @unique
+  confirmationUrl   String?
+  receiptUrl        String?
+
+  createdAt         DateTime      @default(now())
+  paidAt            DateTime?
+  refundedAt        DateTime?
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+enum PaymentStatus {
+  pending
+  succeeded
+  canceled
+  refunded
+}
+
+// ---------- Deadlines (напоминания) ----------
+
+model Deadline {
+  id          String   @id @default(uuid()) @db.Uuid
+  documentId  String   @db.Uuid
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  deadlineAt  DateTime
+  description String
+  remindedAt  DateTime?
+  snoozed     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([deadlineAt, remindedAt])
+}
+
+// ---------- KB articles (RAG-источник) ----------
+
+model KbArticle {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   // NK_RF, GK_RF, ...
+  article   String   // 69, 69.1
+  edition   String   // дата редакции
+  title     String
+  body      String   @db.Text
+  isCurrent Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([code, article, edition])
+  @@index([code, article, isCurrent])
+}
+
+// ---------- Audit log ----------
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @db.Uuid
+  action    String
+  entity    String?
+  entityId  String?
+  payload   Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}

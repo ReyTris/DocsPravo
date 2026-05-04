@@ -1,0 +1,25 @@
+{
+  "name": "@pravoletter/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- tsx watch src/index.ts",
+    "start": "dotenv -e ../../.env -- tsx src/index.ts",
+    "build": "tsc -p tsconfig.json --outDir dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pravoletter/core": "workspace:*",
+    "@pravoletter/db": "workspace:*",
+    "@pravoletter/schemas": "workspace:*",
+    "@aws-sdk/client-s3": "^3.645.0",
+    "pg-boss": "^10.1.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^7.4.2",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4"
+  }
+}

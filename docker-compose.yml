@@ -1,0 +1,41 @@
+# Локальная разработка: только инфраструктура (Postgres + Adminer GUI).
+# Приложения (apps/web, apps/worker) запускаются нативно через `pnpm dev`
+# — так работает hot-reload, типы и логи нормально.
+#
+# Запуск:   docker compose up -d
+# Стоп:     docker compose down
+# Сброс БД: docker compose down -v   (удалит volume с данными)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pravoletter-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pravoletter
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pravoletter"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # GUI для базы — http://localhost:8080
+  # Вход: System=PostgreSQL, Server=postgres, User=postgres, Password=postgres, Database=pravoletter
+  adminer:
+    image: adminer:4
+    container_name: pravoletter-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

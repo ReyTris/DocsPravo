@@ -1,0 +1,10 @@
+{
+  "id": "0002",
+  "source": "synthetic",
+  "expected_classify": {
+    "type": "sudebnyy_prikaz",
+    "min_confidence": 0.9
+  },
+  "expected_pipeline_status": "stop_redirect_lawyer",
+  "comment": "Стоп-тип: цепочка должна остановиться на гейте безопасности и не запускать разбор."
+}

@@ -1,0 +1,15 @@
+{
+  "id": "0003",
+  "source": "synthetic",
+  "expected_classify": {
+    "type": "uvedomlenie_fns",
+    "min_confidence": 0.9
+  },
+  "expected_fields": {
+    "deadline_iso": "2025-12-01",
+    "total_amount_rub": 11000,
+    "must_consult_lawyer": false,
+    "legal_articles_nk": ["52"]
+  },
+  "must_not_appear": ["вы выиграете", "100% законно"]
+}

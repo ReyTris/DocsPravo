@@ -1,0 +1,32 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "AUTH_SECRET",
+    "JWT_SECRET",
+    "OBJECT_STORAGE_*",
+    "YANDEX_*",
+    "GIGACHAT_*",
+    "OPENAI_*",
+    "LLM_PROVIDER",
+    "UKASSA_*",
+    "SMTP_*",
+    "TELEGRAM_*",
+    "PUBLIC_BASE_URL"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "lint": {}
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "pravoletter",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.7.0",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:web": "pnpm --filter @pravoletter/web dev",
+    "dev:worker": "pnpm --filter @pravoletter/worker dev",
+    "build": "turbo run build",
+    "start": "turbo run start --parallel",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "db:generate": "pnpm --filter @pravoletter/db prisma:generate",
+    "db:migrate": "pnpm --filter @pravoletter/db prisma:migrate",
+    "db:studio": "pnpm --filter @pravoletter/db prisma:studio",
+    "evaluate": "pnpm --filter @pravoletter/core evaluate"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^7.4.2",
+    "turbo": "^2.1.0",
+    "typescript": "^5.5.4",
+    "@types/node": "^20.14.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,17 @@
+node_modules/
+.next/
+dist/
+.turbo/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+
+# Prisma
+*.db
+*.db-journal
+
+# Реальные документы пользователей не коммитим
+dataset/private/
+uploads/

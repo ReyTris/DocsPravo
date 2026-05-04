@@ -1,0 +1,20 @@
+{
+  "id": "0001",
+  "source": "synthetic",
+  "expected_classify": {
+    "type": "trebovanie_fns",
+    "min_confidence": 0.9
+  },
+  "expected_fields": {
+    "deadline_iso": "2026-02-15",
+    "total_amount_rub": 12725,
+    "main_amount_rub": 12480,
+    "must_consult_lawyer": false,
+    "legal_articles_nk": ["69", "46", "47", "48"]
+  },
+  "must_not_appear": [
+    "вы выиграете",
+    "100% законно",
+    "смело игнорируйте"
+  ]
+}
