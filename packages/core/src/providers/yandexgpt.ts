@@ -68,7 +68,7 @@ export class YandexGPTProvider implements LLMProvider {
             completionOptions: {
               stream: false,
               temperature: opts.temperature ?? 0,
-              maxTokens: 4000,
+              maxTokens: opts.maxTokens ?? 8000,
             },
             messages,
           }),

@@ -1,21 +1,20 @@
 /**
- * Оркестратор гибридной промт-цепочки.
+ * Оркестратор гибридной промт-цепочки v4.
  *
- * Шаги:
- *   1. Маскирование ПД (regex).
- *   2. Универсальный навигатор (любой документ → структурированный пересказ).
- *   3. Маршрутизатор (код): green / yellow / red.
- *   4a. GREEN  → старая специализированная цепочка (classify → extract → analyze).
- *   4b. YELLOW → безопасный пересказ (yellow-summary).
- *   4c. RED    → стоп, экран "к юристу".
- *   5. Валидация и обратная подстановка ПД.
+ * Теперь pipeline разбирает ВСЕ документы, включая red. Tier — это метка
+ * для UI (показать дополнительные предупреждения), а не блокировщик.
+ *
+ * Для каждого не-error случая:
+ *  - navigator (универсальный пересказ) — всегда.
+ *  - yellow_summary — всегда (если LLM не упал).
+ *  - extract + analyze — пробуем всегда: если документ зелёный — точно сработает,
+ *    для других может быть менее точно, но результат отдаём.
  */
 
 import { classify } from "./steps/classify";
 import { extract } from "./steps/extract";
 import { analyze } from "./steps/analyze";
 import { navigate } from "./steps/navigator";
-import { summarizeYellow } from "./steps/yellow-summary";
 import { route } from "./router";
 import { maskPii, unmaskDeep } from "./pii";
 import {
@@ -27,10 +26,10 @@ import {
 import { type PipelineResult } from "@pravoletter/schemas";
 import type { LLMProvider } from "./providers/llm";
 
-export const PIPELINE_VERSION = "pipeline-v2-hybrid";
+export const PIPELINE_VERSION = "pipeline-v6-flat";
 
 export interface RunOptions {
-  /** Минимальная уверенность классификатора в green-ветке. По умолчанию 0.7. */
+  /** Минимальная уверенность classify, чтобы пытаться extract+analyze. По умолчанию 0 — пробуем всегда. */
   minClassifyConfidence?: number;
 }
 
@@ -40,7 +39,7 @@ export async function runPipeline(
   options: RunOptions = {},
 ): Promise<PipelineResult & { validation_issues?: ValidationIssue[] }> {
   const t0 = Date.now();
-  const minConfidence = options.minClassifyConfidence ?? 0.7;
+  const minConfidence = options.minClassifyConfidence ?? 0;
   const baseMeta = {
     prompt_version: PIPELINE_VERSION,
     model: provider.name,
@@ -58,80 +57,51 @@ export async function runPipeline(
     // ШАГ 2: универсальный навигатор
     const navMasked = await navigate(provider, masked);
 
-    // ШАГ 3: маршрутизация
+    // ШАГ 3: маршрутизация (tier — только метка для UI)
     const decision = route(navMasked);
 
-    // ШАГ 4c: RED — стоп
-    if (decision.tier === "red") {
-      const navFinal = unmaskDeep(navMasked, map);
-      return finalize({
-        status: "stop_redirect_lawyer" as const,
-        tier: "red" as const,
-        navigator: navFinal,
-      });
+    const validationIssues: ValidationIssue[] = [];
+
+    let classifyResult: Awaited<ReturnType<typeof classify>> | null = null;
+    let extractMasked: Awaited<ReturnType<typeof extract>> | null = null;
+    let analysisMasked: Awaited<ReturnType<typeof analyze>> | null = null;
+
+    try {
+      classifyResult = await classify(provider, masked);
+
+      if (classifyResult.confidence >= minConfidence) {
+        extractMasked = await extract(provider, masked);
+        const extractIssues = validateExtract(extractMasked);
+        validationIssues.push(...extractIssues);
+
+        if (!hasErrors(extractIssues)) {
+          analysisMasked = await analyze(provider, navMasked, extractMasked, masked);
+          const analysisIssues = validateAnalysis(analysisMasked);
+          validationIssues.push(...analysisIssues);
+        }
+      }
+    } catch (err) {
+      console.warn("analysis pipeline failed:", err);
     }
 
-    // ШАГ 4a: GREEN — специализированный разбор
-    if (decision.tier === "green") {
-      const classifyResult = await classify(provider, masked);
-      if (classifyResult.confidence < minConfidence) {
-        // Несмотря на сигнал navigator-а, классификатор не уверен — деградируем в yellow
-        const yellowMasked = await summarizeYellow(provider, navMasked, masked);
-        return finalize({
-          status: "ok_yellow" as const,
-          tier: "yellow" as const,
-          navigator: unmaskDeep(navMasked, map),
-          yellow_summary: unmaskDeep(yellowMasked, map),
-        });
-      }
-
-      const extractMasked = await extract(provider, masked);
-      const extractIssues = validateExtract(extractMasked);
-      if (hasErrors(extractIssues)) {
-        return finalize({
-          status: "error" as const,
-          tier: "green" as const,
-          navigator: unmaskDeep(navMasked, map),
-          classify: classifyResult,
-          extract: extractMasked,
-          error: `Ошибки валидации извлечения: ${extractIssues.map((i) => i.message).join("; ")}`,
-          validation_issues: extractIssues,
-        });
-      }
-
-      const analysisMasked = await analyze(provider, extractMasked);
-      const analysisIssues = validateAnalysis(analysisMasked);
-      if (hasErrors(analysisIssues)) {
-        return finalize({
-          status: "error" as const,
-          tier: "green" as const,
-          navigator: unmaskDeep(navMasked, map),
-          classify: classifyResult,
-          extract: extractMasked,
-          analysis: analysisMasked,
-          error: `Ошибки валидации разбора: ${analysisIssues.map((i) => i.message).join("; ")}`,
-          validation_issues: analysisIssues,
-        });
-      }
-
+    if (!analysisMasked) {
       return finalize({
-        status: "ok_green" as const,
-        tier: "green" as const,
+        status: "error" as const,
+        tier: decision.tier,
         navigator: unmaskDeep(navMasked, map),
-        classify: classifyResult,
-        extract: unmaskDeep(extractMasked, map),
-        analysis: unmaskDeep(analysisMasked, map),
-        validation_issues: [...extractIssues, ...analysisIssues],
+        error: "Не удалось сгенерировать разбор. Попробуйте загрузить заново.",
+        validation_issues: validationIssues,
       });
     }
 
-    // ШАГ 4b: YELLOW — безопасный пересказ
-    const yellowMasked = await summarizeYellow(provider, navMasked, masked);
     return finalize({
-      status: "ok_yellow" as const,
-      tier: "yellow" as const,
+      status: "ok" as const,
+      tier: decision.tier,
       navigator: unmaskDeep(navMasked, map),
-      yellow_summary: unmaskDeep(yellowMasked, map),
+      classify: classifyResult ?? undefined,
+      extract: extractMasked ? unmaskDeep(extractMasked, map) : undefined,
+      analysis: unmaskDeep(analysisMasked, map),
+      validation_issues: validationIssues,
     });
   } catch (err) {
     return finalize({

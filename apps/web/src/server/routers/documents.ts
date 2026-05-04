@@ -136,6 +136,25 @@ export const documentsRouter = router({
       return { ok: true as const };
     }),
 
+  /**
+   * Перезапустить pipeline для документа. Полезно если изменились промты или
+   * нужно перепрогнать старый документ под новой логикой.
+   */
+  reprocess: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const doc = await ctx.db.document.findUnique({ where: { id: input.id } });
+      if (!doc || doc.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await enqueuePipelineJob(input.id);
+      await ctx.db.document.update({
+        where: { id: input.id },
+        data: { status: "ocr_processing" },
+      });
+      return { ok: true as const };
+    }),
+
   list: protectedProcedure
     .input(Pagination)
     .output(z.object({ items: z.array(DocumentSummary), nextCursor: z.string().nullable() }))
@@ -170,7 +189,7 @@ export const documentsRouter = router({
         where: { id: input.id },
         include: {
           analyses: { orderBy: { createdAt: "desc" }, take: 1 },
-          payments: { where: { status: "succeeded" }, take: 1 },
+          payments: { where: { status: "succeeded" } },
         },
       });
       if (!doc || doc.userId !== ctx.user.id) {
@@ -184,11 +203,26 @@ export const documentsRouter = router({
             classify?: DocumentDetail["classify"];
             extract?: DocumentDetail["extract"];
             analysis?: DocumentDetail["analysis"];
-            yellow_summary?: DocumentDetail["yellow_summary"];
           }
         | undefined;
-      const paid = doc.payments.length > 0;
+
+      const paid = doc.payments.some((p) => p.status === "succeeded");
       const tier = doc.tier ?? result?.tier ?? null;
+
+      // Audit для red-документов: фиксируем каждое открытие. Это пригодится в суде —
+      // доказательство, что пользователь видел разбор и подтвердил риск.
+      if (tier === "red") {
+        await ctx.db.auditLog.create({
+          data: {
+            userId: ctx.user.id,
+            action: "open_red_document",
+            entity: "Document",
+            entityId: doc.id,
+            ip: ctx.ip ?? undefined,
+            userAgent: ctx.userAgent ?? undefined,
+          },
+        });
+      }
 
       return {
         id: doc.id,
@@ -200,14 +234,11 @@ export const documentsRouter = router({
         criticalDeadline: doc.criticalDeadline?.toISOString() ?? null,
         tier,
         paid,
-        // Navigator (краткий безопасный пересказ) — бесплатно для всех уровней.
+        analysisAvailable: !!result?.analysis,
         navigator: result?.navigator ?? null,
-        // Classify — тоже бесплатно (тип + уверенность).
         classify: result?.classify ?? null,
-        // Полный разбор зелёного и жёлтый пересказ — только после оплаты.
         extract: paid ? (result?.extract ?? null) : null,
         analysis: paid ? (result?.analysis ?? null) : null,
-        yellow_summary: paid ? (result?.yellow_summary ?? null) : null,
       };
     }),
 });

@@ -8,9 +8,7 @@ import { z } from "zod";
 import { randomUUID as uuid } from "node:crypto";
 
 const PRODUCT_PRICES_KOPECKS = {
-  full_analysis: 59000,    // green tier — полный разбор, 590 ₽
-  yellow_summary: 29000,   // yellow tier — безопасный пересказ, 290 ₽
-  urgent_analysis: 88000,  // green с приоритетом, 880 ₽
+  analysis: 29000, // единый разбор документа, 290 ₽
 } as const;
 
 export const paymentsRouter = router({
@@ -126,7 +124,11 @@ export const paymentsRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       const existing = await ctx.db.payment.findFirst({
-        where: { documentId: input.documentId, status: "succeeded" },
+        where: {
+          documentId: input.documentId,
+          status: "succeeded",
+          product: "analysis",
+        },
       });
       if (existing) return { ok: true as const, paymentId: existing.id };
 
@@ -135,12 +137,30 @@ export const paymentsRouter = router({
           userId: ctx.user.id,
           documentId: input.documentId,
           amountKopecks: 0,
-          product: doc.tier === "yellow" ? "yellow_summary" : "full_analysis",
+          product: "analysis",
           status: "succeeded",
           ukassaIdempotency: uuid(),
           paidAt: new Date(),
         },
       });
       return { ok: true as const, paymentId: payment.id };
+    }),
+
+  devReset: protectedProcedure
+    .input(z.object({ documentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      if (process.env.NODE_ENV === "production") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "DEV only" });
+      }
+      const doc = await ctx.db.document.findUnique({
+        where: { id: input.documentId },
+      });
+      if (!doc || doc.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await ctx.db.payment.deleteMany({
+        where: { documentId: input.documentId, amountKopecks: 0 },
+      });
+      return { ok: true as const };
     }),
 });

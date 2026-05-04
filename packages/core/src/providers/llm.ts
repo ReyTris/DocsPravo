@@ -25,6 +25,7 @@ export interface LLMCompleteOptions<T> {
   schemaName: string;
   temperature?: number;
   maxRetries?: number;
+  maxTokens?: number;
 }
 
 export interface LLMResponse<T> {

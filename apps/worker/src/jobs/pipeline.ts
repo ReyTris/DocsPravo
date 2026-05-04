@@ -68,8 +68,8 @@ export async function handlePipelineJob(documentId: string): Promise<void> {
   const detectedType =
     result.navigator?.document_kind_normalized ?? result.classify?.type ?? null;
   const essence =
-    result.analysis?.essence_one_line ??
-    result.yellow_summary?.what_this_document_is ??
+    result.analysis?.essence ??
+    result.analysis?.title ??
     result.navigator?.short_summary ??
     null;
   let criticalDeadline: Date | null = null;
@@ -81,12 +81,8 @@ export async function handlePipelineJob(documentId: string): Promise<void> {
 
   const status = (() => {
     switch (result.status) {
-      case "ok_green":
-        return "ready_green" as const;
-      case "ok_yellow":
-        return "ready_yellow" as const;
-      case "stop_redirect_lawyer":
-        return "stop_redirect_lawyer" as const;
+      case "ok":
+        return "ready" as const;
       case "unsupported":
         return "unsupported" as const;
       default:
@@ -108,7 +104,6 @@ export async function handlePipelineJob(documentId: string): Promise<void> {
           classify: "v1",
           extract: "v1",
           analyze: "v1",
-          yellow: "v1",
         },
         modelName: result.meta.model,
         durationMs: result.meta.duration_ms,
@@ -126,7 +121,7 @@ export async function handlePipelineJob(documentId: string): Promise<void> {
       },
     });
 
-    if (result.status === "ok_green" && result.analysis?.critical_deadline?.date_iso) {
+    if (result.status === "ok" && result.analysis?.critical_deadline?.date_iso) {
       await tx.deadline.create({
         data: {
           documentId,

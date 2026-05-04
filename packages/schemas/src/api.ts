@@ -9,7 +9,6 @@ import {
   ExtractOutputSchema,
   ClassifyOutputSchema,
   NavigatorOutputSchema,
-  YellowSummaryOutputSchema,
   TierEnum,
 } from "./pipeline";
 
@@ -42,10 +41,10 @@ export const DocumentStatus = z.enum([
   "classify_processing",
   "extract_processing",
   "analyze_processing",
-  "ready_green",
-  "ready_yellow",
-  "ready", // legacy (для совместимости со старыми записями)
-  "stop_redirect_lawyer",
+  "ready",
+  "ready_green", // legacy
+  "ready_yellow", // legacy
+  "stop_redirect_lawyer", // legacy
   "unsupported",
   "error",
 ]);
@@ -103,11 +102,11 @@ export type DocumentSummary = z.infer<typeof DocumentSummary>;
 export const DocumentDetail = DocumentSummary.extend({
   tier: TierEnum.nullable(),
   paid: z.boolean(),
+  analysisAvailable: z.boolean(),
   navigator: NavigatorOutputSchema.nullable(),
   classify: ClassifyOutputSchema.nullable(),
   extract: ExtractOutputSchema.nullable(),
   analysis: AnalysisOutputSchema.nullable(),
-  yellow_summary: YellowSummaryOutputSchema.nullable(),
 });
 export type DocumentDetail = z.infer<typeof DocumentDetail>;
 
@@ -115,7 +114,7 @@ export type DocumentDetail = z.infer<typeof DocumentDetail>;
 
 export const CreatePaymentInput = z.object({
   documentId: z.string().uuid(),
-  product: z.enum(["full_analysis", "yellow_summary", "urgent_analysis"]),
+  product: z.literal("analysis"),
 });
 
 export const CreatePaymentOutput = z.object({

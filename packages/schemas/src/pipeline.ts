@@ -61,7 +61,9 @@ export const DeadlineSchema = z.object({
 });
 
 export const LegalReferenceSchema = z.object({
-  code: z.enum(["NK_RF", "GK_RF", "KOAP_RF", "GPK_RF", "FZ_229", "OTHER"]),
+  code: z
+    .enum(["NK_RF", "GK_RF", "KOAP_RF", "GPK_RF", "FZ_229", "OTHER"])
+    .catch("OTHER"),
   article: nullableString,
   raw_quote: nullableString,
 });
@@ -81,17 +83,23 @@ export const ExtractOutputSchema = z.object({
 });
 export type ExtractOutput = z.infer<typeof ExtractOutputSchema>;
 
-// ---------- Финальный разбор ----------
+// ---------- Финальный разбор (плоский, без тарифов) ----------
+// Один уровень разбора: простой пересказ + важные аспекты + подводные камни.
 
-export const ActionVariantSchema = z.object({
-  title: nullableString,
-  description: nullableString,
-  consequences: nullableString,
-});
+const PitfallSeverityEnum = z.enum(["info", "warning", "danger"]).catch("info");
 
 export const AnalysisOutputSchema = z.object({
-  document_summary: nullableString,
-  essence_one_line: z.string().max(200),
+  title: nullableString,
+  essence: nullableString,
+  what_sender_wants: nullableString,
+  key_facts: z
+    .array(
+      z.object({
+        label: nullableString,
+        value: nullableString,
+      }),
+    )
+    .default([]),
   critical_deadline: z
     .object({
       date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
@@ -99,19 +107,21 @@ export const AnalysisOutputSchema = z.object({
       consequence_of_missing: nullableString,
     })
     .nullable(),
-  amounts_breakdown: z.array(MoneySchema),
-  legal_basis: z.array(LegalReferenceSchema),
-  action_variants: z.array(ActionVariantSchema).min(2).max(5),
-  authenticity_check: z.object({
-    sender_looks_legitimate: z.boolean(),
-    phishing_signals: z.array(z.string()),
-    notes: nullableString,
-  }),
-  must_consult_lawyer: z.object({
+  important_aspects: z.array(z.string()).default([]),
+  pitfalls: z
+    .array(
+      z.object({
+        severity: PitfallSeverityEnum,
+        title: nullableString,
+        explanation: nullableString,
+      }),
+    )
+    .default([]),
+  need_lawyer: z.object({
     required: z.boolean(),
-    reasons: z.array(z.string()),
+    reasons: z.array(z.string()).default([]),
   }),
-  not_determined: z.array(z.string()),
+  verify_in_original: z.array(z.string()).default([]),
 });
 export type AnalysisOutput = z.infer<typeof AnalysisOutputSchema>;
 
@@ -186,7 +196,9 @@ export const NavigatorOutputSchema = z.object({
       return allowed.has(v) ? v : "drugoye";
     }),
   urgency: UrgencyTolerant,
-  short_summary: nullableString.describe("1-2 предложения о сути, нейтрально, без советов"),
+  short_summary: nullableString.describe(
+    "Развёрнутый пересказ документа простым языком (5-10 предложений) с ключевыми датами, суммами и последствиями",
+  ),
   key_dates: z.array(
     z.object({
       date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
@@ -230,10 +242,8 @@ export type YellowSummaryOutput = z.infer<typeof YellowSummaryOutputSchema>;
 // ---------- Финальный результат пайплайна ----------
 
 export const PipelineStatusEnum = z.enum([
-  "ok_green",            // полный разбор готов
-  "ok_yellow",           // навигатор + жёлтый пересказ готов
-  "stop_redirect_lawyer", // красный список — разбор не делается
-  "unsupported",         // навигатор не смог
+  "ok",
+  "unsupported",
   "error",
 ]);
 export type PipelineStatus = z.infer<typeof PipelineStatusEnum>;
@@ -245,7 +255,6 @@ export const PipelineResultSchema = z.object({
   classify: ClassifyOutputSchema.optional(),
   extract: ExtractOutputSchema.optional(),
   analysis: AnalysisOutputSchema.optional(),
-  yellow_summary: YellowSummaryOutputSchema.optional(),
   error: z.string().optional(),
   meta: z.object({
     prompt_version: z.string(),

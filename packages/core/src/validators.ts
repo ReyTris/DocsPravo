@@ -69,46 +69,12 @@ export function validateExtract(ext: ExtractOutput): ValidationIssue[] {
 export function validateAnalysis(an: AnalysisOutput): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
-  // Запрещённые формулировки
   const allText = JSON.stringify(an);
   for (const re of FORBIDDEN_PATTERNS) {
     if (re.test(allText)) {
       issues.push({
         code: "forbidden_phrase",
         message: `Найдена запрещённая формулировка по паттерну: ${re}`,
-        severity: "error",
-      });
-    }
-  }
-
-  // Должно быть >= 2 вариантов
-  if (an.action_variants.length < 2) {
-    issues.push({
-      code: "too_few_variants",
-      message: "Должно быть минимум 2 варианта действий.",
-      severity: "error",
-    });
-  }
-
-  // Большая сумма => обязательная рекомендация юриста
-  const total = an.amounts_breakdown.reduce(
-    (s, a) => (a.amount_rub ? s + a.amount_rub : s),
-    0,
-  );
-  if (total > 100000 && !an.must_consult_lawyer.required) {
-    issues.push({
-      code: "high_amount_without_lawyer_flag",
-      message: `Сумма ${total} > 100000 ₽, но must_consult_lawyer.required = false.`,
-      severity: "error",
-    });
-  }
-
-  // Каждая статья закона должна быть в white-list
-  for (const ref of an.legal_basis) {
-    if (ref.code === "NK_RF" && !ALLOWED_NK_ARTICLES.has(ref.article)) {
-      issues.push({
-        code: "unknown_nk_article_in_analysis",
-        message: `В разбор попала неизвестная статья НК РФ: ${ref.article}.`,
         severity: "error",
       });
     }
