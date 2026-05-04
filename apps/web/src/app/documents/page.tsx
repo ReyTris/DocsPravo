@@ -16,7 +16,7 @@ export default function DocumentsListPage() {
   const list = trpc.documents.list.useQuery({ limit: 50 });
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
+    <main className="mx-auto max-w-5xl px-6 py-12">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Мои документы</h1>
         <Link

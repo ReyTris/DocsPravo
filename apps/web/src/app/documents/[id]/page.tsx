@@ -93,15 +93,27 @@ export default function DocumentPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
+    <main className="mx-auto max-w-5xl px-6 py-12">
       {justPaid && (
         <div className="mb-6 rounded-md bg-green-50 p-3 text-sm text-green-800">
           Оплата прошла. Разбор открыт.
         </div>
       )}
 
-      <h1 className="text-2xl font-bold">Разбор документа</h1>
-      <p className="mt-1 text-sm text-gray-500">{d.filename}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Разбор документа</h1>
+          <p className="mt-1 text-sm text-gray-500">{d.filename}</p>
+        </div>
+        <button
+          onClick={() => reprocess.mutate({ id })}
+          disabled={reprocess.isPending}
+          className="shrink-0 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          title="Перегенерировать разбор по обновлённому промту"
+        >
+          {reprocess.isPending ? "Запускаем..." : "🔄 Перегенерировать"}
+        </button>
+      </div>
 
       <ResponsibilityDisclaimer />
 
@@ -269,9 +281,12 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
   const aspects = a.important_aspects.filter((s) => s?.trim());
   const verify = a.verify_in_original.filter((s) => s?.trim());
   const pitfalls = a.pitfalls.filter((p) => p.title?.trim() || p.explanation?.trim());
+  const steps = a.what_to_do_now.filter((s) => s.step?.trim() || s.detail?.trim());
 
   return (
     <div className="mt-6 space-y-6">
+      {a.mood?.headline && <MoodBanner mood={a.mood} />}
+
       {a.title && (
         <Block title="📝 Что это за документ">
           <p className="text-base font-medium">{a.title}</p>
@@ -282,6 +297,24 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
       {a.what_sender_wants && (
         <Block title="🎯 Чего хочет отправитель">
           <p className="leading-relaxed">{a.what_sender_wants}</p>
+        </Block>
+      )}
+
+      {steps.length > 0 && (
+        <Block title="👉 Что сделать прямо сейчас" tone="warning">
+          <ol className="space-y-3">
+            {steps.map((s, i) => (
+              <li key={i} className="rounded border bg-white p-3">
+                <div className="flex gap-2">
+                  <span className="font-semibold text-gray-500">{i + 1}.</span>
+                  <div>
+                    {s.step && <div className="font-semibold">{s.step}</div>}
+                    {s.detail && <p className="mt-1 text-sm text-gray-700">{s.detail}</p>}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
         </Block>
       )}
 
@@ -356,6 +389,23 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
         </Block>
       )}
 
+      {a.case_complexity?.explanation && (
+        <Block title="🧭 Насколько это сложный случай">
+          <div className="flex items-center gap-2">
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                a.case_complexity.level === "complex"
+                  ? "bg-orange-100 text-orange-900"
+                  : "bg-green-100 text-green-900"
+              }`}
+            >
+              {a.case_complexity.level === "complex" ? "Сложный" : "Типовой"}
+            </span>
+          </div>
+          <p className="mt-2 text-sm">{a.case_complexity.explanation}</p>
+        </Block>
+      )}
+
       {a.need_lawyer.required && a.need_lawyer.reasons.length > 0 && (
         <Block title="⚖️ Когда нужен юрист" tone="danger">
           <ul className="list-disc space-y-1 pl-5">
@@ -365,6 +415,25 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
           </ul>
         </Block>
       )}
+    </div>
+  );
+}
+
+function MoodBanner({
+  mood,
+}: {
+  mood: { tone: "calm" | "neutral" | "alarm"; headline: string };
+}) {
+  const map = {
+    calm: { bg: "bg-green-50 border-green-300 text-green-900", icon: "🟢" },
+    neutral: { bg: "bg-blue-50 border-blue-300 text-blue-900", icon: "🔵" },
+    alarm: { bg: "bg-red-50 border-red-300 text-red-900", icon: "🔴" },
+  } as const;
+  const s = map[mood.tone];
+  return (
+    <div className={`rounded-lg border-l-4 p-4 text-base font-medium ${s.bg}`}>
+      <span className="mr-2">{s.icon}</span>
+      {mood.headline}
     </div>
   );
 }

@@ -88,7 +88,17 @@ export type ExtractOutput = z.infer<typeof ExtractOutputSchema>;
 
 const PitfallSeverityEnum = z.enum(["info", "warning", "danger"]).catch("info");
 
+const MoodEnum = z.enum(["calm", "neutral", "alarm"]).catch("neutral");
+const ComplexityEnum = z.enum(["typical", "complex"]).catch("typical");
+
 export const AnalysisOutputSchema = z.object({
+  // Шапка-настроение: одна фраза, которая сразу успокаивает или настораживает.
+  mood: z
+    .object({
+      tone: MoodEnum,
+      headline: nullableString,
+    })
+    .nullable(),
   title: nullableString,
   essence: nullableString,
   what_sender_wants: nullableString,
@@ -97,6 +107,15 @@ export const AnalysisOutputSchema = z.object({
       z.object({
         label: nullableString,
         value: nullableString,
+      }),
+    )
+    .default([]),
+  // Что сделать ПРЯМО СЕЙЧАС — короткий чек-лист действий.
+  what_to_do_now: z
+    .array(
+      z.object({
+        step: nullableString,
+        detail: nullableString,
       }),
     )
     .default([]),
@@ -117,6 +136,13 @@ export const AnalysisOutputSchema = z.object({
       }),
     )
     .default([]),
+  // Уровень сложности кейса — типовой или сложный, и почему.
+  case_complexity: z
+    .object({
+      level: ComplexityEnum,
+      explanation: nullableString,
+    })
+    .nullable(),
   need_lawyer: z.object({
     required: z.boolean(),
     reasons: z.array(z.string()).default([]),

@@ -115,7 +115,7 @@ export default function UploadPage() {
   const totalBytes = files.reduce((s, f) => s + f.size, 0);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-12">
+    <main className="mx-auto max-w-4xl px-6 py-12">
       <h1 className="text-2xl font-bold">Загрузить письмо</h1>
       <p className="mt-2 text-sm text-gray-600">
         PDF или фото письма. Можно несколько страниц/листов одного документа — они будут

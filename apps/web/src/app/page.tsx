@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
+    <main className="mx-auto max-w-5xl px-6 py-16">
       <h1 className="text-4xl font-bold">Разбор писем от государства и банков</h1>
       <p className="mt-4 text-lg text-gray-700">
         Загрузите письмо из ФНС, ФССП, банка или ГИБДД — получите структурированный разбор:

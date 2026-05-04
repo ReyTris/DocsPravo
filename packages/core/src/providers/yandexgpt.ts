@@ -27,7 +27,7 @@ export class YandexGPTProvider implements LLMProvider {
   private apiKey: string;
   private folderId: string;
   private model: string;
-  private url = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion";
+  private url = "https://llm.api.cloud.yandex.net/v1/chat/completions";
 
   constructor(opts: YandexGPTOptions) {
     this.apiKey = opts.apiKey;
@@ -45,8 +45,8 @@ export class YandexGPTProvider implements LLMProvider {
       "\n\nКРИТИЧНО: ответ — ТОЛЬКО валидный JSON по схеме. Никакого текста до или после, никаких markdown-блоков ```json``` — только сырой JSON.";
 
     const messages = [
-      { role: "system" as const, text: systemPrompt },
-      ...opts.messages.map((m) => ({ role: m.role, text: m.content })),
+      { role: "system" as const, content: systemPrompt },
+      ...opts.messages.map((m) => ({ role: m.role, content: m.content })),
     ];
 
     const modelUri = this.model.startsWith("gpt://")
@@ -64,13 +64,11 @@ export class YandexGPTProvider implements LLMProvider {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            modelUri,
-            completionOptions: {
-              stream: false,
-              temperature: opts.temperature ?? 0,
-              maxTokens: opts.maxTokens ?? 8000,
-            },
+            model: modelUri,
             messages,
+            temperature: opts.temperature ?? 0,
+            max_tokens: opts.maxTokens ?? 8000,
+            stream: false,
           }),
         });
 
@@ -78,12 +76,10 @@ export class YandexGPTProvider implements LLMProvider {
           throw new Error(`YandexGPT ${res.status}: ${await res.text()}`);
         }
         const json = (await res.json()) as {
-          result: {
-            alternatives: Array<{ message: { role: string; text: string } }>;
-            usage?: { inputTextTokens: string; completionTokens: string; totalTokens: string };
-          };
+          choices: Array<{ message: { role: string; content: string } }>;
+          usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
         };
-        const raw = json.result.alternatives[0]?.message.text ?? "";
+        const raw = json.choices[0]?.message.content ?? "";
         if (!raw) throw new Error("Empty response from YandexGPT");
 
         const parsed = JSON.parse(this.extractJson(raw));
@@ -93,8 +89,8 @@ export class YandexGPTProvider implements LLMProvider {
           data: validated,
           raw,
           model: this.model,
-          inputTokens: json.result.usage ? Number(json.result.usage.inputTextTokens) : undefined,
-          outputTokens: json.result.usage ? Number(json.result.usage.completionTokens) : undefined,
+          inputTokens: json.usage?.prompt_tokens,
+          outputTokens: json.usage?.completion_tokens,
         };
       } catch (err) {
         lastError = err;
