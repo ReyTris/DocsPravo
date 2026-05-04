@@ -115,20 +115,137 @@ export const AnalysisOutputSchema = z.object({
 });
 export type AnalysisOutput = z.infer<typeof AnalysisOutputSchema>;
 
+// ---------- Универсальный навигатор (Layer 1) ----------
+// Работает на ЛЮБОМ документе. Возвращает структурированный пересказ без
+// юридической интерпретации, без рекомендаций, без статей закона.
+// Это безопасный «paraphrase», который мы можем показать всегда.
+
+export const SenderCategoryEnum = z.enum([
+  "fns",         // ФНС
+  "fssp",        // ФССП — приставы
+  "court",       // Любой суд (включая мировой)
+  "police",      // МВД, СК, прокуратура
+  "voenkomat",   // Военкомат
+  "bank",        // Банк
+  "mfo",         // Микрофинансы
+  "kollektor",   // Коллекторы
+  "gibdd",       // ГИБДД
+  "uk_zhkh",     // УК, ТСЖ, ресурсники
+  "soczashita",  // Соцзащита, ПФР, СФР
+  "ofms",        // Миграционная служба
+  "rospotreb",   // Роспотребнадзор и др. надзоры
+  "private",     // Частное лицо или организация без статуса гос
+  "unknown",
+]);
+export type SenderCategory = z.infer<typeof SenderCategoryEnum>;
+
+// Толерантная версия для парсинга LLM-вывода: незнакомое значение → "unknown"
+export const SenderCategoryTolerant = SenderCategoryEnum.catch("unknown");
+
+export const UrgencyEnum = z.enum([
+  "critical",  // суд, военкомат, уголовка — любая ошибка дорогая
+  "high",      // ФНС-69, ФССП постановления, штрафы — пропуск срока вреден
+  "medium",    // банк, ЖКХ — есть деньги или сроки, но обычно гибко
+  "low",       // информационные, нет требований
+  "unknown",
+]);
+export type Urgency = z.infer<typeof UrgencyEnum>;
+export const UrgencyTolerant = UrgencyEnum.catch("unknown");
+
+export const TierEnum = z.enum([
+  "green",   // полный разбор по специализированному промту (зелёный список типов)
+  "yellow",  // безопасный навигатор-пересказ + предупреждение "тип непрофильный"
+  "red",     // НЕ разбираем: суд, военкомат, уголовка, секретные
+]);
+export type Tier = z.infer<typeof TierEnum>;
+
+export const NavigatorOutputSchema = z.object({
+  sender_category: SenderCategoryTolerant,
+  sender_text: nullableString.describe("Дословный текст отправителя"),
+  document_kind_freeform: nullableString.describe("Как сам документ себя называет"),
+  // Канонический тип. Если LLM вернёт что-то вне списка — нормализуем до "drugoye".
+  document_kind_normalized: z
+    .string()
+    .transform((v) => {
+      const allowed = new Set([
+        "trebovanie_fns",
+        "uvedomlenie_fns",
+        "trebovanie_poyasneniy",
+        "akt_kameralnoy",
+        "reshenie_fns",
+        "uvedomlenie_o_zadolzhennosti",
+        "postanovlenie_fssp",
+        "shtraf_gibdd",
+        "pretenziya_bank",
+        "pererashet_jkh",
+        "sudebnyy_prikaz",
+        "povestka_voenkomat",
+        "ugolovnoe",
+        "drugoye",
+      ]);
+      return allowed.has(v) ? v : "drugoye";
+    }),
+  urgency: UrgencyTolerant,
+  short_summary: nullableString.describe("1-2 предложения о сути, нейтрально, без советов"),
+  key_dates: z.array(
+    z.object({
+      date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+      raw_text: nullableString,
+      what_for: nullableString,
+    }),
+  ),
+  key_amounts: z.array(MoneySchema),
+  parties_masked: z.array(nullableString).describe("Стороны с замаскированными ПД"),
+  is_likely_phishing: z.boolean(),
+  phishing_reasons: z.array(z.string()),
+});
+export type NavigatorOutput = z.infer<typeof NavigatorOutputSchema>;
+
+// ---------- Yellow-tier пересказ (Layer 2 для непрофильных типов) ----------
+// Усиленный навигатор: добавляет «что обычно делает получатель» и чек-лист
+// проверки, но БЕЗ конкретных статей закона и БЕЗ рекомендации действий.
+
+export const YellowSummaryOutputSchema = z.object({
+  what_this_document_is: nullableString.describe("Что это за документ обычными словами"),
+  what_sender_wants: nullableString.describe("Чего отправитель хочет от получателя"),
+  key_facts: z
+    .array(
+      z.object({
+        label: nullableString,
+        value: nullableString,
+        source: z.enum(["from_document", "general_knowledge"]).catch("from_document"),
+      }),
+    )
+    .default([]),
+  things_to_verify: z
+    .array(z.string())
+    .default([])
+    .describe("Чек-лист: что получатель должен проверить в оригинале"),
+  why_lawyer_recommended: nullableString.describe(
+    "Почему по такому документу лучше обратиться к юристу (не общая фраза, а конкретно по делу)",
+  ),
+});
+export type YellowSummaryOutput = z.infer<typeof YellowSummaryOutputSchema>;
+
 // ---------- Финальный результат пайплайна ----------
 
 export const PipelineStatusEnum = z.enum([
-  "ok",
-  "stop_redirect_lawyer",
-  "unsupported",
+  "ok_green",            // полный разбор готов
+  "ok_yellow",           // навигатор + жёлтый пересказ готов
+  "stop_redirect_lawyer", // красный список — разбор не делается
+  "unsupported",         // навигатор не смог
   "error",
 ]);
+export type PipelineStatus = z.infer<typeof PipelineStatusEnum>;
 
 export const PipelineResultSchema = z.object({
   status: PipelineStatusEnum,
+  tier: TierEnum.optional(),
+  navigator: NavigatorOutputSchema.optional(),
   classify: ClassifyOutputSchema.optional(),
   extract: ExtractOutputSchema.optional(),
   analysis: AnalysisOutputSchema.optional(),
+  yellow_summary: YellowSummaryOutputSchema.optional(),
   error: z.string().optional(),
   meta: z.object({
     prompt_version: z.string(),

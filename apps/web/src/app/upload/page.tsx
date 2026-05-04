@@ -6,140 +6,206 @@ import { trpc } from "@/lib/trpc";
 import { isAuthenticated } from "@/lib/auth-client";
 
 const ACCEPTED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/heic"] as const;
+type AcceptedType = (typeof ACCEPTED_TYPES)[number];
 const MAX_BYTES = 20 * 1024 * 1024;
+const MAX_FILES = 20;
 
 export default function UploadPage() {
   const router = useRouter();
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<string>("");
 
-  const requestUrl = trpc.documents.requestUploadUrl.useMutation();
+  const requestUrls = trpc.documents.requestUploadUrls.useMutation();
   const confirmUpload = trpc.documents.confirmUpload.useMutation();
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      router.replace("/login");
-    }
+    if (!isAuthenticated()) router.replace("/login");
   }, [router]);
 
-  const onDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const f = e.dataTransfer.files[0];
-    if (f) acceptFile(f);
-  }, []);
+  const onDrop = useCallback(
+    (e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      acceptFiles(Array.from(e.dataTransfer.files));
+    },
+    [files],
+  );
 
   function onFileInput(e: ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (f) acceptFile(f);
+    if (e.target.files) acceptFiles(Array.from(e.target.files));
+    // позволяем выбрать те же файлы снова после удаления
+    e.target.value = "";
   }
 
-  function acceptFile(f: File) {
+  function acceptFiles(incoming: File[]) {
     setError(null);
-    if (!ACCEPTED_TYPES.includes(f.type as (typeof ACCEPTED_TYPES)[number])) {
-      setError("Поддерживаются: PDF, JPEG, PNG, HEIC.");
-      return;
+    const next = [...files];
+    for (const f of incoming) {
+      if (!ACCEPTED_TYPES.includes(f.type as AcceptedType)) {
+        setError(`Файл "${f.name}": формат не поддерживается. PDF, JPEG, PNG, HEIC.`);
+        continue;
+      }
+      if (f.size > MAX_BYTES) {
+        setError(`Файл "${f.name}" больше 20 МБ.`);
+        continue;
+      }
+      if (next.length >= MAX_FILES) {
+        setError(`Можно загрузить максимум ${MAX_FILES} файлов за раз.`);
+        break;
+      }
+      // дедупликация по имени + размеру
+      if (next.some((x) => x.name === f.name && x.size === f.size)) continue;
+      next.push(f);
     }
-    if (f.size > MAX_BYTES) {
-      setError(`Файл больше 20 МБ (${(f.size / 1024 / 1024).toFixed(1)} МБ).`);
-      return;
-    }
-    setFile(f);
+    setFiles(next);
+  }
+
+  function removeFile(idx: number) {
+    setFiles(files.filter((_, i) => i !== idx));
+  }
+
+  function moveFile(idx: number, dir: -1 | 1) {
+    const j = idx + dir;
+    if (j < 0 || j >= files.length) return;
+    const next = files.slice();
+    [next[idx], next[j]] = [next[j]!, next[idx]!];
+    setFiles(next);
   }
 
   async function startUpload() {
-    if (!file) return;
+    if (files.length === 0) return;
     setUploading(true);
     setError(null);
     try {
       setProgress("Готовим хранилище...");
-      const { documentId, uploadUrl } = await requestUrl.mutateAsync({
-        filename: file.name,
-        contentType: file.type as (typeof ACCEPTED_TYPES)[number],
-        sizeBytes: file.size,
+      const res = await requestUrls.mutateAsync({
+        files: files.map((f) => ({
+          filename: f.name,
+          contentType: f.type as AcceptedType,
+          sizeBytes: f.size,
+        })),
       });
 
-      setProgress("Загружаем файл...");
-      const uploadRes = await fetch(uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
-      if (!uploadRes.ok) {
-        throw new Error(`Ошибка загрузки: ${uploadRes.status}`);
+      // Загрузка файлов параллельно по pre-signed URL.
+      for (let i = 0; i < res.files.length; i++) {
+        setProgress(`Загружаем файл ${i + 1} из ${res.files.length}...`);
+        const presigned = res.files[i]!;
+        const file = files[i]!;
+        const uploadRes = await fetch(presigned.uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        });
+        if (!uploadRes.ok) {
+          throw new Error(`Ошибка загрузки "${file.name}": ${uploadRes.status}`);
+        }
       }
 
       setProgress("Запускаем разбор...");
-      await confirmUpload.mutateAsync({ documentId });
+      await confirmUpload.mutateAsync({ documentId: res.documentId });
 
-      router.push(`/documents/${documentId}`);
+      router.push(`/documents/${res.documentId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось загрузить файл.");
       setUploading(false);
     }
   }
 
+  const totalBytes = files.reduce((s, f) => s + f.size, 0);
+
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
       <h1 className="text-2xl font-bold">Загрузить письмо</h1>
       <p className="mt-2 text-sm text-gray-600">
-        PDF или фото письма. Поддерживаются ФНС, ФССП, ГИБДД, банки. Без судебных
-        приказов и повесток военкомата — это в работу не берётся.
+        PDF или фото письма. Можно несколько страниц/листов одного документа — они будут
+        объединены в один разбор.
       </p>
 
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
-        className="mt-6 rounded-xl border-2 border-dashed p-10 text-center hover:border-gray-400"
+        className="mt-6 rounded-xl border-2 border-dashed p-8 text-center hover:border-gray-400"
       >
-        {file ? (
-          <div>
-            <div className="font-medium">{file.name}</div>
-            <div className="text-sm text-gray-500">
-              {(file.size / 1024).toFixed(0)} КБ · {file.type}
-            </div>
-            <button
-              onClick={() => setFile(null)}
-              className="mt-3 text-sm text-gray-600 underline"
-              disabled={uploading}
-            >
-              Выбрать другой
-            </button>
-          </div>
-        ) : (
-          <>
-            <p className="text-sm text-gray-600">Перетащите файл сюда</p>
-            <label className="mt-3 inline-block cursor-pointer rounded-md bg-black px-4 py-2 text-sm text-white">
-              Выбрать файл
-              <input
-                type="file"
-                accept={ACCEPTED_TYPES.join(",")}
-                onChange={onFileInput}
-                className="hidden"
-              />
-            </label>
-            <p className="mt-3 text-xs text-gray-500">
-              PDF, JPEG, PNG, HEIC · до 20 МБ
-            </p>
-          </>
-        )}
+        <p className="text-sm text-gray-600">Перетащите файлы сюда</p>
+        <label className="mt-3 inline-block cursor-pointer rounded-md bg-black px-4 py-2 text-sm text-white">
+          Выбрать файлы
+          <input
+            type="file"
+            multiple
+            accept={ACCEPTED_TYPES.join(",")}
+            onChange={onFileInput}
+            className="hidden"
+          />
+        </label>
+        <p className="mt-3 text-xs text-gray-500">
+          PDF, JPEG, PNG, HEIC · до 20 МБ каждый · максимум {MAX_FILES} файлов
+        </p>
       </div>
 
-      {error && (
-        <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
+      {files.length > 0 && (
+        <ul className="mt-6 space-y-2">
+          {files.map((f, idx) => (
+            <li
+              key={`${f.name}_${f.size}_${idx}`}
+              className="flex items-center justify-between rounded-md border bg-white p-3 text-sm"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium">{f.name}</div>
+                <div className="text-xs text-gray-500">
+                  {(f.size / 1024).toFixed(0)} КБ · {f.type}
+                </div>
+              </div>
+              <div className="ml-3 flex shrink-0 items-center gap-1">
+                <button
+                  onClick={() => moveFile(idx, -1)}
+                  disabled={idx === 0 || uploading}
+                  className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                  title="Выше"
+                >
+                  ↑
+                </button>
+                <button
+                  onClick={() => moveFile(idx, 1)}
+                  disabled={idx === files.length - 1 || uploading}
+                  className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                  title="Ниже"
+                >
+                  ↓
+                </button>
+                <button
+                  onClick={() => removeFile(idx)}
+                  disabled={uploading}
+                  className="rounded px-2 py-1 text-red-600 hover:bg-red-50 disabled:opacity-30"
+                  title="Удалить"
+                >
+                  ✕
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
 
-      {file && (
-        <button
-          onClick={startUpload}
-          disabled={uploading}
-          className="mt-6 rounded-md bg-black px-6 py-3 text-white disabled:bg-gray-400"
-        >
-          {uploading ? progress || "Загружаем..." : "Загрузить и разобрать"}
-        </button>
+      {error && (
+        <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+      )}
+
+      {files.length > 0 && (
+        <div className="mt-6 flex items-center gap-4">
+          <button
+            onClick={startUpload}
+            disabled={uploading}
+            className="rounded-md bg-black px-6 py-3 text-white disabled:bg-gray-400"
+          >
+            {uploading
+              ? progress || "Загружаем..."
+              : `Загрузить и разобрать (${files.length} ${plural(files.length, ["файл", "файла", "файлов"])})`}
+          </button>
+          <span className="text-xs text-gray-500">
+            Всего: {(totalBytes / 1024 / 1024).toFixed(1)} МБ
+          </span>
+        </div>
       )}
 
       <div className="mt-10 rounded-md border bg-yellow-50 p-4 text-xs text-yellow-900">
@@ -149,4 +215,12 @@ export default function UploadPage() {
       </div>
     </main>
   );
+}
+
+function plural(n: number, [one, few, many]: [string, string, string]): string {
+  const n10 = n % 10;
+  const n100 = n % 100;
+  if (n10 === 1 && n100 !== 11) return one;
+  if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) return few;
+  return many;
 }

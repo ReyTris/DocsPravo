@@ -1,7 +1,10 @@
 export * from "./pipeline";
 export * from "./pii";
 export * from "./validators";
+export * from "./router";
 export * from "./providers/index";
 export { classify, CLASSIFY_PROMPT_VERSION } from "./steps/classify";
 export { extract, EXTRACT_PROMPT_VERSION } from "./steps/extract";
 export { analyze, ANALYZE_PROMPT_VERSION } from "./steps/analyze";
+export { navigate, NAVIGATOR_PROMPT_VERSION } from "./steps/navigator";
+export { summarizeYellow, YELLOW_SUMMARY_PROMPT_VERSION } from "./steps/yellow-summary";

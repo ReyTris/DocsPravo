@@ -8,6 +8,8 @@ import {
   Pagination,
   RequestUploadUrlInput,
   RequestUploadUrlOutput,
+  RequestUploadUrlsInput,
+  RequestUploadUrlsOutput,
 } from "@pravoletter/schemas";
 import { router, protectedProcedure } from "../trpc";
 import { presignUploadUrl } from "../../lib/storage";
@@ -19,6 +21,7 @@ export const documentsRouter = router({
    * Шаг 2: клиент кладёт файл напрямую в Object Storage.
    * Шаг 3: клиент вызывает confirmUpload — мы ставим job на OCR + пайплайн.
    */
+  // Legacy: одиночная загрузка. Новые клиенты используют requestUploadUrls.
   requestUploadUrl: protectedProcedure
     .input(RequestUploadUrlInput)
     .output(RequestUploadUrlOutput)
@@ -36,13 +39,81 @@ export const documentsRouter = router({
           contentType: input.contentType,
           sizeBytes: input.sizeBytes,
           storageKey,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 дней
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          files: {
+            create: {
+              filename: input.filename,
+              contentType: input.contentType,
+              sizeBytes: input.sizeBytes,
+              storageKey,
+              position: 0,
+            },
+          },
         },
       });
 
       const uploadUrl = await presignUploadUrl(storageKey, input.contentType, expiresInSec);
-
       return { documentId, uploadUrl, expiresInSec };
+    }),
+
+  // Multi-upload: создаём один Document и N файлов внутри него.
+  requestUploadUrls: protectedProcedure
+    .input(RequestUploadUrlsInput)
+    .output(RequestUploadUrlsOutput)
+    .mutation(async ({ ctx, input }) => {
+      const documentId = randomUUID();
+      const expiresInSec = 600;
+
+      // Подготавливаем метаданные файлов с уникальными storageKey
+      const filesData = input.files.map((f, idx) => {
+        const fileId = randomUUID();
+        const safeName = f.filename.replace(/[^\w.\-]/g, "_");
+        return {
+          fileId,
+          filename: f.filename,
+          safeName,
+          contentType: f.contentType,
+          sizeBytes: f.sizeBytes,
+          position: idx,
+          storageKey: `uploads/${ctx.user.id}/${documentId}/${fileId}_${safeName}`,
+        };
+      });
+
+      // Первый файл становится "главным" для legacy-полей Document.
+      const first = filesData[0]!;
+
+      await ctx.db.document.create({
+        data: {
+          id: documentId,
+          userId: ctx.user.id,
+          status: "uploaded",
+          filename: first.filename,
+          contentType: first.contentType,
+          sizeBytes: filesData.reduce((sum, f) => sum + f.sizeBytes, 0),
+          storageKey: first.storageKey,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          files: {
+            create: filesData.map((f) => ({
+              id: f.fileId,
+              filename: f.filename,
+              contentType: f.contentType,
+              sizeBytes: f.sizeBytes,
+              storageKey: f.storageKey,
+              position: f.position,
+            })),
+          },
+        },
+      });
+
+      const presigned = await Promise.all(
+        filesData.map(async (f) => ({
+          fileId: f.fileId,
+          uploadUrl: await presignUploadUrl(f.storageKey, f.contentType, expiresInSec),
+          filename: f.filename,
+        })),
+      );
+
+      return { documentId, files: presigned, expiresInSec };
     }),
 
   confirmUpload: protectedProcedure
@@ -107,9 +178,17 @@ export const documentsRouter = router({
       }
       const analysis = doc.analyses[0];
       const result = analysis?.result as
-        | { classify?: unknown; extract?: unknown; analysis?: unknown }
+        | {
+            tier?: DocumentDetail["tier"];
+            navigator?: DocumentDetail["navigator"];
+            classify?: DocumentDetail["classify"];
+            extract?: DocumentDetail["extract"];
+            analysis?: DocumentDetail["analysis"];
+            yellow_summary?: DocumentDetail["yellow_summary"];
+          }
         | undefined;
       const paid = doc.payments.length > 0;
+      const tier = doc.tier ?? result?.tier ?? null;
 
       return {
         id: doc.id,
@@ -119,11 +198,16 @@ export const documentsRouter = router({
         type: doc.detectedType,
         essence: doc.essence,
         criticalDeadline: doc.criticalDeadline?.toISOString() ?? null,
+        tier,
         paid,
-        // Бесплатно показываем только classify (тип, суть). Extract и analysis — только после оплаты.
-        classify: (result?.classify as DocumentDetail["classify"]) ?? null,
-        extract: paid ? ((result?.extract as DocumentDetail["extract"]) ?? null) : null,
-        analysis: paid ? ((result?.analysis as DocumentDetail["analysis"]) ?? null) : null,
+        // Navigator (краткий безопасный пересказ) — бесплатно для всех уровней.
+        navigator: result?.navigator ?? null,
+        // Classify — тоже бесплатно (тип + уверенность).
+        classify: result?.classify ?? null,
+        // Полный разбор зелёного и жёлтый пересказ — только после оплаты.
+        extract: paid ? (result?.extract ?? null) : null,
+        analysis: paid ? (result?.analysis ?? null) : null,
+        yellow_summary: paid ? (result?.yellow_summary ?? null) : null,
       };
     }),
 });

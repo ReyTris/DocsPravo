@@ -4,7 +4,14 @@
  */
 
 import { z } from "zod";
-import { AnalysisOutputSchema, ExtractOutputSchema, ClassifyOutputSchema } from "./pipeline";
+import {
+  AnalysisOutputSchema,
+  ExtractOutputSchema,
+  ClassifyOutputSchema,
+  NavigatorOutputSchema,
+  YellowSummaryOutputSchema,
+  TierEnum,
+} from "./pipeline";
 
 // ---------- Auth ----------
 
@@ -35,23 +42,46 @@ export const DocumentStatus = z.enum([
   "classify_processing",
   "extract_processing",
   "analyze_processing",
-  "ready",
+  "ready_green",
+  "ready_yellow",
+  "ready", // legacy (для совместимости со старыми записями)
   "stop_redirect_lawyer",
   "unsupported",
   "error",
 ]);
 export type DocumentStatus = z.infer<typeof DocumentStatus>;
 
-export const RequestUploadUrlInput = z.object({
+// Один файл (для одиночной загрузки или одного из массива)
+export const FileMeta = z.object({
   filename: z.string().max(255),
   contentType: z.enum(["application/pdf", "image/jpeg", "image/png", "image/heic"]),
-  sizeBytes: z.number().int().positive().max(20 * 1024 * 1024), // 20 МБ лимит
+  sizeBytes: z.number().int().positive().max(20 * 1024 * 1024), // 20 МБ
+});
+export type FileMeta = z.infer<typeof FileMeta>;
+
+// Multi-upload: создаём документ + N файлов, возвращаем pre-signed URL для каждого.
+export const RequestUploadUrlsInput = z.object({
+  files: z.array(FileMeta).min(1).max(20),
 });
 
+export const PresignedFile = z.object({
+  fileId: z.string().uuid(),
+  uploadUrl: z.string().url(),
+  filename: z.string(),
+});
+
+export const RequestUploadUrlsOutput = z.object({
+  documentId: z.string().uuid(),
+  files: z.array(PresignedFile),
+  expiresInSec: z.number(),
+});
+
+// Legacy (одиночный файл) — оставляем для совместимости.
+export const RequestUploadUrlInput = FileMeta;
 export const RequestUploadUrlOutput = z.object({
   documentId: z.string().uuid(),
   uploadUrl: z.string().url(),
-  uploadFields: z.record(z.string()).optional(), // для S3 POST policy
+  uploadFields: z.record(z.string()).optional(),
   expiresInSec: z.number(),
 });
 
@@ -71,10 +101,13 @@ export const DocumentSummary = z.object({
 export type DocumentSummary = z.infer<typeof DocumentSummary>;
 
 export const DocumentDetail = DocumentSummary.extend({
+  tier: TierEnum.nullable(),
   paid: z.boolean(),
+  navigator: NavigatorOutputSchema.nullable(),
   classify: ClassifyOutputSchema.nullable(),
   extract: ExtractOutputSchema.nullable(),
   analysis: AnalysisOutputSchema.nullable(),
+  yellow_summary: YellowSummaryOutputSchema.nullable(),
 });
 export type DocumentDetail = z.infer<typeof DocumentDetail>;
 
@@ -82,7 +115,7 @@ export type DocumentDetail = z.infer<typeof DocumentDetail>;
 
 export const CreatePaymentInput = z.object({
   documentId: z.string().uuid(),
-  product: z.enum(["full_analysis", "urgent_analysis"]),
+  product: z.enum(["full_analysis", "yellow_summary", "urgent_analysis"]),
 });
 
 export const CreatePaymentOutput = z.object({

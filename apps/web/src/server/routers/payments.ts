@@ -4,9 +4,13 @@ import { CreatePaymentInput, CreatePaymentOutput } from "@pravoletter/schemas";
 import { router, protectedProcedure } from "../trpc";
 import { env } from "../../lib/env";
 
+import { z } from "zod";
+import { randomUUID as uuid } from "node:crypto";
+
 const PRODUCT_PRICES_KOPECKS = {
-  full_analysis: 59000, // 590 ₽
-  urgent_analysis: 88000, // 880 ₽
+  full_analysis: 59000,    // green tier — полный разбор, 590 ₽
+  yellow_summary: 29000,   // yellow tier — безопасный пересказ, 290 ₽
+  urgent_analysis: 88000,  // green с приоритетом, 880 ₽
 } as const;
 
 export const paymentsRouter = router({
@@ -102,5 +106,41 @@ export const paymentsRouter = router({
         paymentId: payment.id,
         confirmationUrl: data.confirmation.confirmation_url,
       };
+    }),
+
+  /**
+   * DEV-ONLY. Имитирует успешную оплату — создаёт Payment(succeeded) сразу,
+   * без обращения к ЮKassa. Позволяет тестировать платный UI без настроенного
+   * платёжного шлюза. В production вернёт ошибку.
+   */
+  devMockPay: protectedProcedure
+    .input(z.object({ documentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      if (process.env.NODE_ENV === "production") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "DEV only" });
+      }
+      const doc = await ctx.db.document.findUnique({
+        where: { id: input.documentId },
+      });
+      if (!doc || doc.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      const existing = await ctx.db.payment.findFirst({
+        where: { documentId: input.documentId, status: "succeeded" },
+      });
+      if (existing) return { ok: true as const, paymentId: existing.id };
+
+      const payment = await ctx.db.payment.create({
+        data: {
+          userId: ctx.user.id,
+          documentId: input.documentId,
+          amountKopecks: 0,
+          product: doc.tier === "yellow" ? "yellow_summary" : "full_analysis",
+          status: "succeeded",
+          ukassaIdempotency: uuid(),
+          paidAt: new Date(),
+        },
+      });
+      return { ok: true as const, paymentId: payment.id };
     }),
 });

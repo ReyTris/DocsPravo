@@ -1,30 +1,36 @@
 /**
- * Оркестратор промт-цепочки.
+ * Оркестратор гибридной промт-цепочки.
  *
  * Шаги:
- *   0. (Внешне) OCR — на вход приходит уже текст.
- *   1. Маскирование ПД.
- *   2. Классификация.
- *   2.5. Гейт безопасности (стоп-типы → редирект к юристу).
- *   3. Извлечение полей (только для поддерживаемых типов).
- *   4. Валидация извлечённого.
- *   5. Финальный разбор.
- *   6. Валидация разбора.
- *   7. Обратная подстановка ПД.
+ *   1. Маскирование ПД (regex).
+ *   2. Универсальный навигатор (любой документ → структурированный пересказ).
+ *   3. Маршрутизатор (код): green / yellow / red.
+ *   4a. GREEN  → старая специализированная цепочка (classify → extract → analyze).
+ *   4b. YELLOW → безопасный пересказ (yellow-summary).
+ *   4c. RED    → стоп, экран "к юристу".
+ *   5. Валидация и обратная подстановка ПД.
  */
 
 import { classify } from "./steps/classify";
 import { extract } from "./steps/extract";
 import { analyze } from "./steps/analyze";
+import { navigate } from "./steps/navigator";
+import { summarizeYellow } from "./steps/yellow-summary";
+import { route } from "./router";
 import { maskPii, unmaskDeep } from "./pii";
-import { hasErrors, validateAnalysis, validateExtract, type ValidationIssue } from "./validators";
-import { STOP_TYPES, SUPPORTED_TYPES, type PipelineResult } from "@pravoletter/schemas";
+import {
+  hasErrors,
+  validateAnalysis,
+  validateExtract,
+  type ValidationIssue,
+} from "./validators";
+import { type PipelineResult } from "@pravoletter/schemas";
 import type { LLMProvider } from "./providers/llm";
 
-export const PIPELINE_VERSION = "pipeline-v1";
+export const PIPELINE_VERSION = "pipeline-v2-hybrid";
 
 export interface RunOptions {
-  /** Минимальная уверенность классификатора, чтобы продолжать. Иначе — unsupported. */
+  /** Минимальная уверенность классификатора в green-ветке. По умолчанию 0.7. */
   minClassifyConfidence?: number;
 }
 
@@ -35,107 +41,102 @@ export async function runPipeline(
 ): Promise<PipelineResult & { validation_issues?: ValidationIssue[] }> {
   const t0 = Date.now();
   const minConfidence = options.minClassifyConfidence ?? 0.7;
+  const baseMeta = {
+    prompt_version: PIPELINE_VERSION,
+    model: provider.name,
+    duration_ms: 0,
+  };
+  const finalize = <T extends object>(r: T) => ({
+    ...r,
+    meta: { ...baseMeta, duration_ms: Date.now() - t0 },
+  });
 
   try {
     // ШАГ 1: маскирование ПД
     const { masked, map } = maskPii(ocrText);
 
-    // ШАГ 2: классификация (на маскированном тексте)
-    const classifyResult = await classify(provider, masked);
+    // ШАГ 2: универсальный навигатор
+    const navMasked = await navigate(provider, masked);
 
-    // ШАГ 2.5: гейт безопасности
-    if (STOP_TYPES.includes(classifyResult.type)) {
-      return {
-        status: "stop_redirect_lawyer",
-        classify: classifyResult,
-        meta: {
-          prompt_version: PIPELINE_VERSION,
-          model: provider.name,
-          duration_ms: Date.now() - t0,
-        },
-      };
-    }
-    if (
-      !SUPPORTED_TYPES.includes(classifyResult.type) ||
-      classifyResult.confidence < minConfidence
-    ) {
-      return {
-        status: "unsupported",
-        classify: classifyResult,
-        meta: {
-          prompt_version: PIPELINE_VERSION,
-          model: provider.name,
-          duration_ms: Date.now() - t0,
-        },
-      };
+    // ШАГ 3: маршрутизация
+    const decision = route(navMasked);
+
+    // ШАГ 4c: RED — стоп
+    if (decision.tier === "red") {
+      const navFinal = unmaskDeep(navMasked, map);
+      return finalize({
+        status: "stop_redirect_lawyer" as const,
+        tier: "red" as const,
+        navigator: navFinal,
+      });
     }
 
-    // ШАГ 3: извлечение
-    const extractMasked = await extract(provider, masked);
+    // ШАГ 4a: GREEN — специализированный разбор
+    if (decision.tier === "green") {
+      const classifyResult = await classify(provider, masked);
+      if (classifyResult.confidence < minConfidence) {
+        // Несмотря на сигнал navigator-а, классификатор не уверен — деградируем в yellow
+        const yellowMasked = await summarizeYellow(provider, navMasked, masked);
+        return finalize({
+          status: "ok_yellow" as const,
+          tier: "yellow" as const,
+          navigator: unmaskDeep(navMasked, map),
+          yellow_summary: unmaskDeep(yellowMasked, map),
+        });
+      }
 
-    // ШАГ 4: валидация извлечённого
-    const extractIssues = validateExtract(extractMasked);
-    if (hasErrors(extractIssues)) {
-      return {
-        status: "error",
+      const extractMasked = await extract(provider, masked);
+      const extractIssues = validateExtract(extractMasked);
+      if (hasErrors(extractIssues)) {
+        return finalize({
+          status: "error" as const,
+          tier: "green" as const,
+          navigator: unmaskDeep(navMasked, map),
+          classify: classifyResult,
+          extract: extractMasked,
+          error: `Ошибки валидации извлечения: ${extractIssues.map((i) => i.message).join("; ")}`,
+          validation_issues: extractIssues,
+        });
+      }
+
+      const analysisMasked = await analyze(provider, extractMasked);
+      const analysisIssues = validateAnalysis(analysisMasked);
+      if (hasErrors(analysisIssues)) {
+        return finalize({
+          status: "error" as const,
+          tier: "green" as const,
+          navigator: unmaskDeep(navMasked, map),
+          classify: classifyResult,
+          extract: extractMasked,
+          analysis: analysisMasked,
+          error: `Ошибки валидации разбора: ${analysisIssues.map((i) => i.message).join("; ")}`,
+          validation_issues: analysisIssues,
+        });
+      }
+
+      return finalize({
+        status: "ok_green" as const,
+        tier: "green" as const,
+        navigator: unmaskDeep(navMasked, map),
         classify: classifyResult,
-        extract: extractMasked,
-        error: `Ошибки валидации извлечения: ${extractIssues.map((i) => i.message).join("; ")}`,
-        meta: {
-          prompt_version: PIPELINE_VERSION,
-          model: provider.name,
-          duration_ms: Date.now() - t0,
-        },
-        validation_issues: extractIssues,
-      };
+        extract: unmaskDeep(extractMasked, map),
+        analysis: unmaskDeep(analysisMasked, map),
+        validation_issues: [...extractIssues, ...analysisIssues],
+      });
     }
 
-    // ШАГ 5: финальный разбор
-    const analysisMasked = await analyze(provider, extractMasked);
-
-    // ШАГ 6: валидация разбора
-    const analysisIssues = validateAnalysis(analysisMasked);
-    if (hasErrors(analysisIssues)) {
-      return {
-        status: "error",
-        classify: classifyResult,
-        extract: extractMasked,
-        analysis: analysisMasked,
-        error: `Ошибки валидации разбора: ${analysisIssues.map((i) => i.message).join("; ")}`,
-        meta: {
-          prompt_version: PIPELINE_VERSION,
-          model: provider.name,
-          duration_ms: Date.now() - t0,
-        },
-        validation_issues: analysisIssues,
-      };
-    }
-
-    // ШАГ 7: обратная подстановка ПД
-    const extractFinal = unmaskDeep(extractMasked, map);
-    const analysisFinal = unmaskDeep(analysisMasked, map);
-
-    return {
-      status: "ok",
-      classify: classifyResult,
-      extract: extractFinal,
-      analysis: analysisFinal,
-      meta: {
-        prompt_version: PIPELINE_VERSION,
-        model: provider.name,
-        duration_ms: Date.now() - t0,
-      },
-      validation_issues: [...extractIssues, ...analysisIssues],
-    };
+    // ШАГ 4b: YELLOW — безопасный пересказ
+    const yellowMasked = await summarizeYellow(provider, navMasked, masked);
+    return finalize({
+      status: "ok_yellow" as const,
+      tier: "yellow" as const,
+      navigator: unmaskDeep(navMasked, map),
+      yellow_summary: unmaskDeep(yellowMasked, map),
+    });
   } catch (err) {
-    return {
-      status: "error",
+    return finalize({
+      status: "error" as const,
       error: err instanceof Error ? err.message : String(err),
-      meta: {
-        prompt_version: PIPELINE_VERSION,
-        model: provider.name,
-        duration_ms: Date.now() - t0,
-      },
-    };
+    });
   }
 }

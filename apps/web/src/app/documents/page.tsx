@@ -82,8 +82,10 @@ function StatusBadge({ status }: { status: string }) {
     extract_processing: { text: "извлечение", cls: "bg-blue-100 text-blue-700" },
     analyze_processing: { text: "разбор", cls: "bg-blue-100 text-blue-700" },
     ready: { text: "готово", cls: "bg-green-100 text-green-800" },
-    stop_redirect_lawyer: { text: "к юристу", cls: "bg-orange-100 text-orange-800" },
-    unsupported: { text: "не поддерживается", cls: "bg-gray-100 text-gray-700" },
+    ready_green: { text: "полный разбор", cls: "bg-green-100 text-green-800" },
+    ready_yellow: { text: "пересказ", cls: "bg-yellow-100 text-yellow-900" },
+    stop_redirect_lawyer: { text: "к юристу", cls: "bg-red-100 text-red-800" },
+    unsupported: { text: "не определён", cls: "bg-gray-100 text-gray-700" },
     error: { text: "ошибка", cls: "bg-red-100 text-red-700" },
   };
   const s = labels[status] ?? { text: status, cls: "bg-gray-100 text-gray-700" };

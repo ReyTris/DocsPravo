@@ -77,16 +77,19 @@ model Document {
   user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   status        DocumentStatus @default(uploaded)
 
+  // Legacy-поля (для документов, загруженных до multi-file). Для новых документов
+  // эти поля заполняются по первому файлу — для обратной совместимости со списком.
   filename      String
   contentType   String
   sizeBytes     Int
-  storageKey    String         @unique // путь в Object Storage
-  fileHash      String? // sha256 — для дедупликации и forensics
+  storageKey    String         @unique
+  fileHash      String?
 
   ocrText       String?        @db.Text
   ocrCostKopecks Int?
 
   // Денормализация для быстрого списка
+  tier          DocumentTier?
   detectedType  String?
   essence       String?
   criticalDeadline DateTime?
@@ -96,6 +99,7 @@ model Document {
   // Автоудаление через 30 дней (cron)
   expiresAt     DateTime
 
+  files         DocumentFile[]
   analyses      Analysis[]
   payments      Payment[]
   deadlines     Deadline[]
@@ -105,6 +109,28 @@ model Document {
   @@index([expiresAt])
 }
 
+// Один Document может иметь несколько прикреплённых файлов (страницы скана,
+// несколько листов, фото с разных ракурсов).
+model DocumentFile {
+  id          String   @id @default(uuid()) @db.Uuid
+  documentId  String   @db.Uuid
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  filename    String
+  contentType String
+  sizeBytes   Int
+  storageKey  String   @unique
+  fileHash    String?
+  position    Int      @default(0) // порядок отображения / OCR
+
+  ocrText     String?  @db.Text
+  ocrCostKopecks Int?
+
+  createdAt   DateTime @default(now())
+
+  @@index([documentId, position])
+}
+
 enum DocumentStatus {
   uploaded
   ocr_processing
@@ -112,9 +138,17 @@ enum DocumentStatus {
   extract_processing
   analyze_processing
   ready
+  ready_green
+  ready_yellow
   stop_redirect_lawyer
   unsupported
   error
+}
+
+enum DocumentTier {
+  green
+  yellow
+  red
 }
 
 // ---------- Analyses ----------
