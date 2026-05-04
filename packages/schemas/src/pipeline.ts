@@ -73,11 +73,11 @@ export const ExtractOutputSchema = z.object({
   recipient_masked: nullableString,
   document_number: z.string().nullable(),
   document_date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-  subject_one_line: z.string().max(200),
+  subject_one_line: z.string().max(200).nullable().catch(null),
   amounts: z.array(MoneySchema),
   deadlines: z.array(DeadlineSchema),
   legal_references: z.array(LegalReferenceSchema),
-  payment_details_present: z.boolean(),
+  payment_details_present: z.boolean().nullable().catch(null),
   uin: z.string().nullable(),
   not_determined_fields: z.array(z.string()),
 });
@@ -143,10 +143,13 @@ export const AnalysisOutputSchema = z.object({
       explanation: nullableString,
     })
     .nullable(),
-  need_lawyer: z.object({
-    required: z.boolean(),
-    reasons: z.array(z.string()).default([]),
-  }),
+  need_lawyer: z
+    .object({
+      required: z.boolean(),
+      reasons: z.array(z.string()).default([]),
+    })
+    .nullable()
+    .catch(null),
   verify_in_original: z.array(z.string()).default([]),
 });
 export type AnalysisOutput = z.infer<typeof AnalysisOutputSchema>;
