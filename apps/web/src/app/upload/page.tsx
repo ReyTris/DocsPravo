@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, type DragEvent, type ChangeEvent } from "react";
+import { useState, useEffect, useCallback, useRef, type DragEvent, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { isAuthenticated } from "@/lib/auth-client";
@@ -16,6 +16,7 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<string>("");
+  const abortRef = useRef<AbortController | null>(null);
 
   const requestUrls = trpc.documents.requestUploadUrls.useMutation();
   const confirmUpload = trpc.documents.confirmUpload.useMutation();
@@ -75,6 +76,8 @@ export default function UploadPage() {
 
   async function startUpload() {
     if (files.length === 0) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setUploading(true);
     setError(null);
     try {
@@ -86,6 +89,7 @@ export default function UploadPage() {
           sizeBytes: f.size,
         })),
       });
+      if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
 
       // Загрузка файлов параллельно по pre-signed URL.
       for (let i = 0; i < res.files.length; i++) {
@@ -96,6 +100,7 @@ export default function UploadPage() {
           method: "PUT",
           body: file,
           headers: { "Content-Type": file.type },
+          signal: controller.signal,
         });
         if (!uploadRes.ok) {
           throw new Error(`Ошибка загрузки "${file.name}": ${uploadRes.status}`);
@@ -104,12 +109,24 @@ export default function UploadPage() {
 
       setProgress("Запускаем разбор...");
       await confirmUpload.mutateAsync({ documentId: res.documentId });
+      if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
 
       router.push(`/documents/${res.documentId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось загрузить файл.");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Загрузка отменена.");
+      } else {
+        setError(err instanceof Error ? err.message : "Не удалось загрузить файл.");
+      }
       setUploading(false);
+      setProgress("");
+    } finally {
+      abortRef.current = null;
     }
+  }
+
+  function cancelUpload() {
+    abortRef.current?.abort();
   }
 
   const totalBytes = files.reduce((s, f) => s + f.size, 0);
@@ -202,6 +219,14 @@ export default function UploadPage() {
               ? progress || "Загружаем..."
               : `Загрузить и разобрать (${files.length} ${plural(files.length, ["файл", "файла", "файлов"])})`}
           </button>
+          {uploading && (
+            <button
+              onClick={cancelUpload}
+              className="rounded-md border border-gray-300 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Отменить
+            </button>
+          )}
           <span className="text-xs text-gray-500">
             Всего: {(totalBytes / 1024 / 1024).toFixed(1)} МБ
           </span>

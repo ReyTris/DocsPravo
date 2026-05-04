@@ -47,6 +47,7 @@ export const DocumentStatus = z.enum([
   "stop_redirect_lawyer", // legacy
   "unsupported",
   "error",
+  "cancelled",
 ]);
 export type DocumentStatus = z.infer<typeof DocumentStatus>;
 

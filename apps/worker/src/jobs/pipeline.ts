@@ -14,6 +14,10 @@ export async function handlePipelineJob(documentId: string): Promise<void> {
     include: { files: { orderBy: { position: "asc" } } },
   });
   if (!doc) throw new Error(`Document ${documentId} not found`);
+  if (doc.status === "cancelled") {
+    console.log(`[pipeline] document=${documentId} cancelled before start, skipping`);
+    return;
+  }
 
   await prisma.document.update({
     where: { id: documentId },
@@ -45,6 +49,15 @@ export async function handlePipelineJob(documentId: string): Promise<void> {
     }
   }
   const ocrText = parts.join("\n\n");
+
+  const afterOcr = await prisma.document.findUnique({
+    where: { id: documentId },
+    select: { status: true },
+  });
+  if (afterOcr?.status === "cancelled") {
+    console.log(`[pipeline] document=${documentId} cancelled after OCR, skipping LLM`);
+    return;
+  }
 
   await prisma.document.update({
     where: { id: documentId },
@@ -89,6 +102,15 @@ export async function handlePipelineJob(documentId: string): Promise<void> {
         return "error" as const;
     }
   })();
+
+  const beforeWrite = await prisma.document.findUnique({
+    where: { id: documentId },
+    select: { status: true },
+  });
+  if (beforeWrite?.status === "cancelled") {
+    console.log(`[pipeline] document=${documentId} cancelled, skipping result write`);
+    return;
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.analysis.create({

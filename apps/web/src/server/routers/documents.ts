@@ -155,6 +155,34 @@ export const documentsRouter = router({
       return { ok: true as const };
     }),
 
+  /**
+   * Отменить обработку документа. Помечает документ как cancelled —
+   * воркер проверит статус перед записью результата и не перезапишет его.
+   */
+  cancel: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const doc = await ctx.db.document.findUnique({ where: { id: input.id } });
+      if (!doc || doc.userId !== ctx.user.id) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      const cancellable = new Set([
+        "uploaded",
+        "ocr_processing",
+        "classify_processing",
+        "extract_processing",
+        "analyze_processing",
+      ]);
+      if (!cancellable.has(doc.status)) {
+        return { ok: true as const, alreadyDone: true };
+      }
+      await ctx.db.document.update({
+        where: { id: input.id },
+        data: { status: "cancelled" },
+      });
+      return { ok: true as const };
+    }),
+
   list: protectedProcedure
     .input(Pagination)
     .output(z.object({ items: z.array(DocumentSummary), nextCursor: z.string().nullable() }))

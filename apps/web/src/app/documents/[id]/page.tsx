@@ -56,6 +56,9 @@ export default function DocumentPage() {
   const reprocess = trpc.documents.reprocess.useMutation({
     onSuccess: () => utils.documents.getById.invalidate({ id }),
   });
+  const cancel = trpc.documents.cancel.useMutation({
+    onSuccess: () => utils.documents.getById.invalidate({ id }),
+  });
 
   const buy = () => createPayment.mutate({ documentId: id, product: "analysis" });
   const mockPay = () => devMockPay.mutate({ documentId: id });
@@ -72,6 +75,32 @@ export default function DocumentPage() {
           Обычно 30–60 секунд. Страница обновится автоматически.
         </p>
         <div className="mt-6 h-2 w-full animate-pulse rounded-full bg-gray-200" />
+        <button
+          onClick={() => cancel.mutate({ id })}
+          disabled={cancel.isPending}
+          className="mt-6 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          {cancel.isPending ? "Отменяем..." : "Отменить обработку"}
+        </button>
+      </main>
+    );
+  }
+
+  if (d.status === "cancelled") {
+    return (
+      <main className="mx-auto max-w-2xl px-6 py-12">
+        <h1 className="text-2xl font-bold">Обработка отменена</h1>
+        <p className="mt-3 text-gray-700">
+          Вы остановили разбор этого документа. Можно запустить заново или удалить
+          документ из списка.
+        </p>
+        <button
+          onClick={() => reprocess.mutate({ id })}
+          disabled={reprocess.isPending}
+          className="mt-6 rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
+        >
+          {reprocess.isPending ? "Запускаем..." : "Запустить заново"}
+        </button>
       </main>
     );
   }

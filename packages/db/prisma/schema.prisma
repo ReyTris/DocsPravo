@@ -143,6 +143,7 @@ enum DocumentStatus {
   stop_redirect_lawyer
   unsupported
   error
+  cancelled
 }
 
 enum DocumentTier {
