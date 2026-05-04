@@ -1,2 +1,2 @@
-export * from "./pipeline.js";
-export * from "./api.js";
+export * from "./pipeline";
+export * from "./api";

@@ -13,7 +13,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createLLMProvider, runPipeline } from "../src/index.js";
+import { createLLMProvider, runPipeline } from "../src/index";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

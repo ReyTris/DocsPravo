@@ -9,9 +9,9 @@ import {
   RequestUploadUrlInput,
   RequestUploadUrlOutput,
 } from "@pravoletter/schemas";
-import { router, protectedProcedure } from "../trpc.js";
-import { presignUploadUrl } from "../../lib/storage.js";
-import { enqueuePipelineJob } from "../services/jobs.js";
+import { router, protectedProcedure } from "../trpc";
+import { presignUploadUrl } from "../../lib/storage";
+import { enqueuePipelineJob } from "../services/jobs";
 
 export const documentsRouter = router({
   /**

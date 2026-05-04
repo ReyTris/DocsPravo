@@ -10,7 +10,7 @@
 
 import { SignJWT, jwtVerify } from "jose";
 import { randomBytes, createHash } from "node:crypto";
-import { env } from "./env.js";
+import { env } from "./env";
 
 export interface AccessTokenPayload {
   sub: string; // userId

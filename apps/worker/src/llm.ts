@@ -1,5 +1,5 @@
 import { createLLMProvider, type LLMProvider } from "@pravoletter/core";
-import { env } from "./env.js";
+import { env } from "./env";
 
 let cached: LLMProvider | null = null;
 

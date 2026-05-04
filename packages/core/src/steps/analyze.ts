@@ -1,4 +1,4 @@
-import type { LLMProvider } from "../providers/llm.js";
+import type { LLMProvider } from "../providers/llm";
 import {
   AnalysisOutputSchema,
   type AnalysisOutput,

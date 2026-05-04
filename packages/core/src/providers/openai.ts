@@ -5,7 +5,7 @@
 
 import OpenAI from "openai";
 import { z } from "zod";
-import type { LLMCompleteOptions, LLMProvider, LLMResponse } from "./llm.js";
+import type { LLMCompleteOptions, LLMProvider, LLMResponse } from "./llm";
 
 export class OpenAIProvider implements LLMProvider {
   readonly name = "openai";

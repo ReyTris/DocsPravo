@@ -6,7 +6,7 @@
  */
 
 import PgBoss from "pg-boss";
-import { env } from "../../lib/env.js";
+import { env } from "../../lib/env";
 
 let bossPromise: Promise<PgBoss> | null = null;
 

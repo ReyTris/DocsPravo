@@ -4,9 +4,9 @@
 
 import { prisma } from "@pravoletter/db";
 import { runPipeline, PIPELINE_VERSION } from "@pravoletter/core";
-import { downloadObject } from "../storage.js";
-import { ocrDocument } from "../ocr.js";
-import { getProvider } from "../llm.js";
+import { downloadObject } from "../storage";
+import { ocrDocument } from "../ocr";
+import { getProvider } from "../llm";
 
 export async function handlePipelineJob(documentId: string): Promise<void> {
   const doc = await prisma.document.findUnique({ where: { id: documentId } });

@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import { CreatePaymentInput, CreatePaymentOutput } from "@pravoletter/schemas";
-import { router, protectedProcedure } from "../trpc.js";
-import { env } from "../../lib/env.js";
+import { router, protectedProcedure } from "../trpc";
+import { env } from "../../lib/env";
 
 const PRODUCT_PRICES_KOPECKS = {
   full_analysis: 59000, // 590 ₽

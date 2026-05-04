@@ -15,7 +15,7 @@
  */
 
 import { z } from "zod";
-import type { LLMCompleteOptions, LLMProvider, LLMResponse } from "./llm.js";
+import type { LLMCompleteOptions, LLMProvider, LLMResponse } from "./llm";
 
 interface TokenCache {
   token: string;

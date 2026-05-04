@@ -3,7 +3,7 @@
  * Документация: https://cloud.yandex.ru/docs/vision/operations/ocr/text-detection-doc
  */
 
-import { env } from "./env.js";
+import { env } from "./env";
 
 export async function ocrDocument(buffer: Buffer, mime: string): Promise<string> {
   if (!env.YANDEX_VISION_API_KEY || !env.YANDEX_VISION_FOLDER_ID) {

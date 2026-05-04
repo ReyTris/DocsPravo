@@ -8,7 +8,7 @@
 
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { prisma } from "@pravoletter/db";
-import { verifyAccessToken } from "../lib/jwt.js";
+import { verifyAccessToken } from "../lib/jwt";
 
 export async function createContext({ req }: FetchCreateContextFnOptions) {
   const authHeader = req.headers.get("authorization");

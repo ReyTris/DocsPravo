@@ -3,9 +3,9 @@
  * Это позволяет использовать пакет в любом окружении (Next.js, worker, скрипты).
  */
 
-import type { LLMProvider } from "./llm.js";
-import { OpenAIProvider } from "./openai.js";
-import { GigaChatProvider } from "./gigachat.js";
+import type { LLMProvider } from "./llm";
+import { OpenAIProvider } from "./openai";
+import { GigaChatProvider } from "./gigachat";
 
 export type ProviderConfig =
   | { kind: "openai"; apiKey: string; model?: string }
@@ -22,4 +22,4 @@ export function createLLMProvider(config: ProviderConfig): LLMProvider {
   throw new Error(`Unknown provider`);
 }
 
-export type { LLMProvider } from "./llm.js";
+export type { LLMProvider } from "./llm";

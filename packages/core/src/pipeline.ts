@@ -13,13 +13,13 @@
  *   7. Обратная подстановка ПД.
  */
 
-import { classify } from "./steps/classify.js";
-import { extract } from "./steps/extract.js";
-import { analyze } from "./steps/analyze.js";
-import { maskPii, unmaskDeep } from "./pii.js";
-import { hasErrors, validateAnalysis, validateExtract, type ValidationIssue } from "./validators.js";
+import { classify } from "./steps/classify";
+import { extract } from "./steps/extract";
+import { analyze } from "./steps/analyze";
+import { maskPii, unmaskDeep } from "./pii";
+import { hasErrors, validateAnalysis, validateExtract, type ValidationIssue } from "./validators";
 import { STOP_TYPES, SUPPORTED_TYPES, type PipelineResult } from "@pravoletter/schemas";
-import type { LLMProvider } from "./providers/llm.js";
+import type { LLMProvider } from "./providers/llm";
 
 export const PIPELINE_VERSION = "pipeline-v1";
 

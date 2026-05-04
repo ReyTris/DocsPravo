@@ -5,10 +5,10 @@
  */
 
 import PgBoss from "pg-boss";
-import { env } from "./env.js";
-import { handlePipelineJob } from "./jobs/pipeline.js";
-import { handleReminderTick } from "./jobs/reminders.js";
-import { handleCleanupTick } from "./jobs/cleanup.js";
+import { env } from "./env";
+import { handlePipelineJob } from "./jobs/pipeline";
+import { handleReminderTick } from "./jobs/reminders";
+import { handleCleanupTick } from "./jobs/cleanup";
 
 const QUEUE_PIPELINE = "pipeline:run";
 const QUEUE_REMINDERS = "reminders:tick";

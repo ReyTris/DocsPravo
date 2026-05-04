@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { AnalysisOutputSchema, ExtractOutputSchema, ClassifyOutputSchema } from "./pipeline.js";
+import { AnalysisOutputSchema, ExtractOutputSchema, ClassifyOutputSchema } from "./pipeline";
 
 // ---------- Auth ----------
 

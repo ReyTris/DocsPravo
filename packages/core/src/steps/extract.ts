@@ -1,4 +1,4 @@
-import type { LLMProvider } from "../providers/llm.js";
+import type { LLMProvider } from "../providers/llm";
 import { ExtractOutputSchema, type ExtractOutput } from "@pravoletter/schemas";
 
 export const EXTRACT_PROMPT_VERSION = "extract-trebovanie_fns-v1";

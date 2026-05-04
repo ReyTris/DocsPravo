@@ -3,9 +3,9 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { LoginInput, RegisterInput, TokenPair } from "@pravoletter/schemas";
 import { PrismaClient } from "@pravoletter/db";
-import { router, publicProcedure } from "../trpc.js";
-import { generateRefreshToken, hashRefreshToken, signAccessToken } from "../../lib/jwt.js";
-import { env } from "../../lib/env.js";
+import { router, publicProcedure } from "../trpc";
+import { generateRefreshToken, hashRefreshToken, signAccessToken } from "../../lib/jwt";
+import { env } from "../../lib/env";
 
 async function issueTokens(db: InstanceType<typeof PrismaClient>, userId: string, role: "user" | "admin", ip: string | null, ua: string | null) {
   const access = await signAccessToken({ sub: userId, role });
