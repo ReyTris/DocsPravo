@@ -20,6 +20,11 @@ function client(): S3Client {
       secretAccessKey: e.OBJECT_STORAGE_SECRET_KEY,
     },
     forcePathStyle: true,
+    // AWS SDK v3.730+ по умолчанию добавляет CRC32-checksum в headers и signed URL.
+    // Yandex Object Storage этот заголовок не подписывает корректно — ломаются browser PUT.
+    // Отключаем автогенерацию checksum, оставляем только когда явно нужно.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   });
   return cached;
 }

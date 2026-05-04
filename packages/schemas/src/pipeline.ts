@@ -43,26 +43,32 @@ export type ClassifyOutput = z.infer<typeof ClassifyOutputSchema>;
 
 // ---------- Извлечение полей ----------
 
+// Хелпер: модель может вернуть null вместо пустой строки — нормализуем.
+// На входе принимаем string | null | undefined, на выходе — всегда string.
+const nullableString = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((v) => v ?? "");
+
 export const MoneySchema = z.object({
   amount_rub: z.number().nullable(),
-  description: z.string(),
+  description: nullableString,
 });
 
 export const DeadlineSchema = z.object({
   date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-  raw_text: z.string(),
-  consequence: z.string(),
+  raw_text: nullableString,
+  consequence: nullableString,
 });
 
 export const LegalReferenceSchema = z.object({
   code: z.enum(["NK_RF", "GK_RF", "KOAP_RF", "GPK_RF", "FZ_229", "OTHER"]),
-  article: z.string(),
-  raw_quote: z.string(),
+  article: nullableString,
+  raw_quote: nullableString,
 });
 
 export const ExtractOutputSchema = z.object({
-  sender: z.string(),
-  recipient_masked: z.string(),
+  sender: nullableString,
+  recipient_masked: nullableString,
   document_number: z.string().nullable(),
   document_date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   subject_one_line: z.string().max(200),
@@ -78,19 +84,19 @@ export type ExtractOutput = z.infer<typeof ExtractOutputSchema>;
 // ---------- Финальный разбор ----------
 
 export const ActionVariantSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  consequences: z.string(),
+  title: nullableString,
+  description: nullableString,
+  consequences: nullableString,
 });
 
 export const AnalysisOutputSchema = z.object({
-  document_summary: z.string(),
+  document_summary: nullableString,
   essence_one_line: z.string().max(200),
   critical_deadline: z
     .object({
       date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-      what_to_do: z.string(),
-      consequence_of_missing: z.string(),
+      what_to_do: nullableString,
+      consequence_of_missing: nullableString,
     })
     .nullable(),
   amounts_breakdown: z.array(MoneySchema),
@@ -99,7 +105,7 @@ export const AnalysisOutputSchema = z.object({
   authenticity_check: z.object({
     sender_looks_legitimate: z.boolean(),
     phishing_signals: z.array(z.string()),
-    notes: z.string(),
+    notes: nullableString,
   }),
   must_consult_lawyer: z.object({
     required: z.boolean(),

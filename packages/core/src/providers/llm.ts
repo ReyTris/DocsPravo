@@ -18,7 +18,10 @@ export interface LLMMessage {
 export interface LLMCompleteOptions<T> {
   system: string;
   messages: LLMMessage[];
-  schema: z.ZodType<T>;
+  // Третий generic-параметр z.ZodType (Input) — any, чтобы разрешить схемы с .transform()
+  // (input может быть `string | null`, output — `string`, и это нормально).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: z.ZodType<T, z.ZodTypeDef, any>;
   schemaName: string;
   temperature?: number;
   maxRetries?: number;

@@ -79,9 +79,25 @@ export default function DocumentPage() {
       <main className="mx-auto max-w-2xl px-6 py-12">
         <h1 className="text-2xl font-bold">Не смогли определить</h1>
         <p className="mt-3 text-gray-700">
-          Не удалось классифицировать документ. Возможно, плохое качество скана или это не тот тип
-          письма, который мы поддерживаем.
+          Не удалось уверенно классифицировать документ. Возможно, плохое качество скана,
+          либо тип письма, который мы пока не поддерживаем.
         </p>
+        {d.classify && (
+          <div className="mt-6 rounded-md border bg-gray-50 p-4 text-sm">
+            <div className="font-medium">Что определила модель</div>
+            <div className="mt-2 text-gray-700">
+              Тип: <span className="font-mono">{d.classify.type}</span>
+              <br />
+              Уверенность: {(d.classify.confidence * 100).toFixed(0)}%
+              <br />
+              Обоснование: {d.classify.reason}
+            </div>
+            <div className="mt-3 text-xs text-gray-500">
+              Поддерживаемые типы для разбора: trebovanie_fns, uvedomlenie_fns,
+              trebovanie_poyasneniy. Минимальная уверенность — 70%.
+            </div>
+          </div>
+        )}
       </main>
     );
   }

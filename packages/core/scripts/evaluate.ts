@@ -43,7 +43,18 @@ function findSamples(root: string): string[] {
 }
 
 function getProvider() {
-  const which = (process.env.LLM_PROVIDER ?? "openai").toLowerCase();
+  const which = (process.env.LLM_PROVIDER ?? "yandex").toLowerCase();
+  if (which === "yandex") {
+    if (!process.env.YANDEX_API_KEY || !process.env.YANDEX_FOLDER_ID) {
+      throw new Error("YANDEX_API_KEY и YANDEX_FOLDER_ID должны быть заданы");
+    }
+    return createLLMProvider({
+      kind: "yandex",
+      apiKey: process.env.YANDEX_API_KEY,
+      folderId: process.env.YANDEX_FOLDER_ID,
+      model: process.env.YANDEX_MODEL ?? "yandexgpt/latest",
+    });
+  }
   if (which === "gigachat") {
     if (!process.env.GIGACHAT_AUTH_KEY) throw new Error("GIGACHAT_AUTH_KEY не задан");
     return createLLMProvider({ kind: "gigachat", authKey: process.env.GIGACHAT_AUTH_KEY });
@@ -78,8 +89,17 @@ async function main() {
     try {
       const r = await runPipeline(provider, ocr);
       const expStatus = exp.expected_pipeline_status ?? "ok";
-      if (r.status === expStatus) okStatus++;
-      if (r.classify?.type === exp.expected_classify.type) okType++;
+      const statusOk = r.status === expStatus;
+      const typeOk = r.classify?.type === exp.expected_classify.type;
+      if (statusOk) okStatus++;
+      if (typeOk) okType++;
+      if (!statusOk || !typeOk) {
+        console.log(
+          `\n  status=${r.status} (ожидали ${expStatus})` +
+            `\n  type=${r.classify?.type ?? "—"} conf=${r.classify?.confidence ?? "—"} (ожидали ${exp.expected_classify.type})` +
+            (r.error ? `\n  error: ${r.error}` : ""),
+        );
+      }
 
       if (exp.expected_fields?.deadline_iso) {
         hadDeadline++;
@@ -93,7 +113,7 @@ async function main() {
       for (const ref of r.analysis?.legal_basis ?? []) {
         if (ref.code === "NK_RF" && !ALLOWED_NK.has(ref.article)) halluc++;
       }
-      console.log("OK");
+      console.log(statusOk && typeOk ? "  OK" : "  FAIL");
     } catch (err) {
       console.log("CRASH:", err instanceof Error ? err.message : err);
       failed.push(id);
