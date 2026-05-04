@@ -11,17 +11,52 @@
  */
 
 import pdfParse from "pdf-parse/lib/pdf-parse.js";
+import sharp from "sharp";
 import { env } from "./env";
 
 const MIN_TEXT_LAYER_CHARS = 80;
 const MIN_PRINTABLE_RATIO = 0.6;
 
+// Yandex Vision: лимит 10 МБ на запрос и 20 МП. Длинная сторона 2200 px —
+// компромисс: мелкий печатный текст (реквизиты, печати) ещё читается, но
+// фото с телефона (4000+ px) ужимаются в ~5–10 раз.
+const MAX_LONG_SIDE_PX = 2200;
+const JPEG_QUALITY = 85;
+
 export async function ocrDocument(buffer: Buffer, mime: string): Promise<string> {
   if (mime === "application/pdf") {
     const fromLayer = await tryExtractPdfTextLayer(buffer);
     if (fromLayer) return fromLayer;
+    return ocrViaYandexVision(buffer, mime);
   }
-  return ocrViaYandexVision(buffer, mime);
+  const { buffer: prepared, mime: preparedMime } = await preprocessImage(buffer, mime);
+  return ocrViaYandexVision(prepared, preparedMime);
+}
+
+async function preprocessImage(
+  buffer: Buffer,
+  mime: string,
+): Promise<{ buffer: Buffer; mime: string }> {
+  try {
+    const img = sharp(buffer, { failOn: "none" }).rotate();
+    const meta = await img.metadata();
+    const longSide = Math.max(meta.width ?? 0, meta.height ?? 0);
+    let pipeline = img;
+    if (longSide > MAX_LONG_SIDE_PX) {
+      pipeline = pipeline.resize({
+        width: meta.width && meta.width >= (meta.height ?? 0) ? MAX_LONG_SIDE_PX : undefined,
+        height: meta.height && meta.height > (meta.width ?? 0) ? MAX_LONG_SIDE_PX : undefined,
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+    }
+    const out = await pipeline
+      .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+      .toBuffer();
+    return { buffer: out, mime: "image/jpeg" };
+  } catch {
+    return { buffer, mime };
+  }
 }
 
 async function tryExtractPdfTextLayer(buffer: Buffer): Promise<string | null> {
