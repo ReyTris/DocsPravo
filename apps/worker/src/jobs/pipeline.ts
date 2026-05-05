@@ -24,6 +24,27 @@ export async function handlePipelineJob(documentId: string): Promise<void> {
     data: { status: "ocr_processing" },
   });
 
+  try {
+    await runPipelineJob(documentId, doc as DocWithFiles);
+  } catch (err) {
+    await prisma.document
+      .update({ where: { id: documentId }, data: { status: "error" } })
+      .catch(() => {});
+    throw err;
+  }
+}
+
+type DocWithFiles = NonNullable<
+  Awaited<
+    ReturnType<
+      typeof prisma.document.findUnique<{
+        include: { files: { orderBy: { position: "asc" } } };
+      }>
+    >
+  >
+>;
+
+async function runPipelineJob(documentId: string, doc: DocWithFiles): Promise<void> {
   // Если есть привязанные файлы — обрабатываем все. Иначе legacy: один storageKey.
   const filesToOcr =
     doc.files.length > 0

@@ -71,14 +71,14 @@ export default function DocumentPage() {
     return (
       <main className="mx-auto max-w-2xl px-6 py-12">
         <h1 className="text-2xl font-bold">{STATUS_LABEL[d.status]}</h1>
-        <p className="mt-3 text-gray-600">
+        <p className="mt-3 text-[var(--muted)]">
           Обычно 30–60 секунд. Страница обновится автоматически.
         </p>
-        <div className="mt-6 h-2 w-full animate-pulse rounded-full bg-gray-200" />
+        <div className="mt-6 h-2 w-full animate-pulse rounded-full bg-white/10" />
         <button
           onClick={() => cancel.mutate({ id })}
           disabled={cancel.isPending}
-          className="mt-6 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="mt-6 rounded-md border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--muted)] hover:bg-white/10 disabled:opacity-50"
         >
           {cancel.isPending ? "Отменяем..." : "Отменить обработку"}
         </button>
@@ -90,7 +90,7 @@ export default function DocumentPage() {
     return (
       <main className="mx-auto max-w-2xl px-6 py-12">
         <h1 className="text-2xl font-bold">Обработка отменена</h1>
-        <p className="mt-3 text-gray-700">
+        <p className="mt-3 text-[var(--muted)]">
           Вы остановили разбор этого документа. Можно запустить заново или удалить
           документ из списка.
         </p>
@@ -109,7 +109,7 @@ export default function DocumentPage() {
     return (
       <main className="mx-auto max-w-2xl px-6 py-12">
         <h1 className="text-2xl font-bold">Не смогли обработать документ</h1>
-        <p className="mt-3 text-gray-700">
+        <p className="mt-3 text-[var(--muted)]">
           Не удалось распознать структуру документа. Возможно, плохое качество скана или
           непонятный тип. Попробуйте загрузить более чёткое фото или PDF.
         </p>
@@ -124,7 +124,7 @@ export default function DocumentPage() {
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
       {justPaid && (
-        <div className="mb-6 rounded-md bg-green-50 p-3 text-sm text-green-800">
+        <div className="mb-6 rounded-md bg-[var(--ok)]/10 p-3 text-sm text-[var(--ok)]">
           Оплата прошла. Разбор открыт.
         </div>
       )}
@@ -132,12 +132,12 @@ export default function DocumentPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Разбор документа</h1>
-          <p className="mt-1 text-sm text-gray-500">{d.filename}</p>
+          <p className="mt-1 text-sm text-[var(--muted)]">{d.filename}</p>
         </div>
         <button
           onClick={() => reprocess.mutate({ id })}
           disabled={reprocess.isPending}
-          className="shrink-0 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="shrink-0 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-[var(--muted)] hover:bg-white/10 disabled:opacity-50"
           title="Перегенерировать разбор по обновлённому промту"
         >
           {reprocess.isPending ? "Запускаем..." : "🔄 Перегенерировать"}
@@ -183,32 +183,32 @@ function Paywall({
   reprocessing: boolean;
 }) {
   return (
-    <section className="mt-8 rounded-lg border bg-gray-50 p-6">
+    <section className="mt-8 rounded-lg border border-white/10 bg-white/5 p-6">
       <h2 className="text-lg font-semibold">Получить разбор документа</h2>
-      <p className="mt-2 text-sm text-gray-700">
+      <p className="mt-2 text-sm text-[var(--muted)]">
         Понятный пересказ простыми словами: что это за документ, что важно, какие сроки,
         подводные камни и что обязательно сверить в оригинале.
       </p>
 
       <div className="mt-5 flex items-baseline gap-3">
         <div className="text-2xl font-bold">290 ₽</div>
-        <div className="text-sm text-gray-500">единый тариф</div>
+        <div className="text-sm text-[var(--muted)]">единый тариф</div>
       </div>
 
       <button
         onClick={onBuy}
         disabled={paying || !available}
-        className="mt-4 w-full rounded-md bg-black px-5 py-3 text-sm font-medium text-white disabled:bg-gray-400 sm:w-auto"
+        className="mt-4 w-full rounded-md bg-black px-5 py-3 text-sm font-medium text-white disabled:bg-white/10 sm:w-auto"
       >
         {paying ? "..." : "Получить разбор"}
       </button>
 
-      <p className="mt-3 text-xs text-gray-500">
+      <p className="mt-3 text-xs text-[var(--muted)]">
         Оплата через ЮKassa. Чек уходит автоматически в «Мой налог».
       </p>
 
-      <div className="mt-6 border-t pt-4">
-        <div className="text-xs font-semibold text-purple-900">🧪 Тестовый режим</div>
+      <div className="mt-6 border-t border-white/10 pt-4">
+        <div className="text-xs font-semibold text-[var(--brand-2)]">🧪 Тестовый режим</div>
         <div className="mt-2 flex flex-wrap gap-2">
           <button
             onClick={onMockPay}
@@ -220,7 +220,7 @@ function Paywall({
           <button
             onClick={onReprocess}
             disabled={reprocessing}
-            className="rounded-md border border-purple-400 bg-white px-3 py-1.5 text-xs text-purple-700 hover:bg-purple-100 disabled:opacity-50"
+            className="rounded-md border border-purple-400 bg-white/5 px-3 py-1.5 text-xs text-purple-400 hover:bg-purple-500/20 disabled:opacity-50"
           >
             {reprocessing ? "Запускаем..." : "🔄 Перегенерировать"}
           </button>
@@ -232,7 +232,7 @@ function Paywall({
 
 function ResponsibilityDisclaimer() {
   return (
-    <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+    <div className="mt-4 rounded-md border border-[var(--warn)]/40 bg-[var(--warn)]/10 p-4 text-sm text-[var(--warn)]">
       <div className="font-semibold">⚠️ Отказ от ответственности</div>
       <p className="mt-1">
         Разбор сгенерирован автоматически с помощью AI и носит исключительно
@@ -252,10 +252,10 @@ function ResponsibilityDisclaimer() {
 
 function NavigatorBlock({ nav }: { nav: NavigatorOutput }) {
   return (
-    <section className="mt-6 rounded-lg border p-5">
+    <section className="mt-6 rounded-lg border border-white/10 p-5">
       <h2 className="font-semibold">📄 Что это за документ</h2>
       {nav.short_summary && (
-        <div className="mt-3 whitespace-pre-line rounded-md bg-blue-50 p-4 text-[15px] leading-relaxed text-gray-900">
+        <div className="mt-3 whitespace-pre-line rounded-md bg-[var(--brand)]/10 p-4 text-[15px] leading-relaxed text-[var(--text)]">
           {nav.short_summary}
         </div>
       )}
@@ -292,9 +292,9 @@ function NavigatorBlock({ nav }: { nav: NavigatorOutput }) {
         )}
       </dl>
       {nav.is_likely_phishing && nav.phishing_reasons.length > 0 && (
-        <div className="mt-4 rounded-md border-l-4 border-red-500 bg-red-50 p-3 text-sm">
-          <div className="font-semibold text-red-900">⚠️ Возможные признаки фишинга</div>
-          <ul className="mt-1 list-disc pl-5 text-red-900">
+        <div className="mt-4 rounded-md border-l-4 border-[var(--danger)] bg-[var(--danger)]/10 p-3 text-sm">
+          <div className="font-semibold text-[var(--danger)]">⚠️ Возможные признаки фишинга</div>
+          <ul className="mt-1 list-disc pl-5 text-[var(--danger)]">
             {nav.phishing_reasons.map((r, i) => (
               <li key={i}>{r}</li>
             ))}
@@ -333,12 +333,12 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
         <Block title="👉 Что сделать прямо сейчас" tone="warning">
           <ol className="space-y-3">
             {steps.map((s, i) => (
-              <li key={i} className="rounded border bg-white p-3">
+              <li key={i} className="rounded border border-white/10 bg-white/5 p-3">
                 <div className="flex gap-2">
-                  <span className="font-semibold text-gray-500">{i + 1}.</span>
+                  <span className="font-semibold text-[var(--muted)]">{i + 1}.</span>
                   <div>
                     {s.step && <div className="font-semibold">{s.step}</div>}
-                    {s.detail && <p className="mt-1 text-sm text-gray-700">{s.detail}</p>}
+                    {s.detail && <p className="mt-1 text-sm text-[var(--muted)]">{s.detail}</p>}
                   </div>
                 </div>
               </li>
@@ -352,8 +352,8 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
           <dl className="space-y-2 text-sm">
             {facts.map((f, i) => (
               <div key={i} className="grid grid-cols-[180px_1fr] gap-3">
-                <dt className="text-gray-500">{f.label}</dt>
-                <dd className="text-gray-900">{f.value}</dd>
+                <dt className="text-[var(--muted)]">{f.label}</dt>
+                <dd className="text-[var(--text)]">{f.value}</dd>
               </div>
             ))}
           </dl>
@@ -372,7 +372,7 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
               <p className="mt-2">{a.critical_deadline.what_to_do}</p>
             )}
             {a.critical_deadline.consequence_of_missing && (
-              <p className="mt-2 text-sm text-red-800">
+              <p className="mt-2 text-sm text-[var(--danger)]">
                 <span className="font-semibold">Если пропустить:</span>{" "}
                 {a.critical_deadline.consequence_of_missing}
               </p>
@@ -394,13 +394,13 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
         <Block title="⚠️ Подводные камни" tone="warning">
           <ul className="space-y-3">
             {pitfalls.map((p, i) => (
-              <li key={i} className="rounded border bg-white p-3">
+              <li key={i} className="rounded border border-white/10 bg-white/5 p-3">
                 <div className="flex items-center gap-2">
                   <SeverityDot severity={p.severity} />
                   <span className="font-semibold">{p.title}</span>
                 </div>
                 {p.explanation && (
-                  <p className="mt-1 text-sm text-gray-700">{p.explanation}</p>
+                  <p className="mt-1 text-sm text-[var(--muted)]">{p.explanation}</p>
                 )}
               </li>
             ))}
@@ -424,8 +424,8 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
             <span
               className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                 a.case_complexity.level === "complex"
-                  ? "bg-orange-100 text-orange-900"
-                  : "bg-green-100 text-green-900"
+                  ? "bg-[var(--warn)]/10 text-[var(--warn)]"
+                  : "bg-[var(--ok)]/10 text-[var(--ok)]"
               }`}
             >
               {a.case_complexity.level === "complex" ? "Сложный" : "Типовой"}
@@ -454,9 +454,18 @@ function MoodBanner({
   mood: { tone: "calm" | "neutral" | "alarm"; headline: string };
 }) {
   const map = {
-    calm: { bg: "bg-green-50 border-green-300 text-green-900", icon: "🟢" },
-    neutral: { bg: "bg-blue-50 border-blue-300 text-blue-900", icon: "🔵" },
-    alarm: { bg: "bg-red-50 border-red-300 text-red-900", icon: "🔴" },
+    calm: {
+      bg: "border-[var(--ok)] bg-[var(--ok)]/10 text-[var(--ok)]",
+      icon: "🟢",
+    },
+    neutral: {
+      bg: "border-[var(--brand)] bg-[var(--brand)]/10 text-[var(--text)]",
+      icon: "🔵",
+    },
+    alarm: {
+      bg: "border-[var(--danger)] bg-[var(--danger)]/10 text-[var(--danger)]",
+      icon: "🔴",
+    },
   } as const;
   const s = map[mood.tone];
   return (
@@ -470,10 +479,10 @@ function MoodBanner({
 function SeverityDot({ severity }: { severity: "info" | "warning" | "danger" }) {
   const cls =
     severity === "danger"
-      ? "bg-red-500"
+      ? "bg-[var(--danger)]"
       : severity === "warning"
-        ? "bg-amber-500"
-        : "bg-blue-500";
+        ? "bg-[var(--warn)]"
+        : "bg-[var(--brand)]";
   return <span className={`inline-block h-2 w-2 rounded-full ${cls}`} />;
 }
 
@@ -488,14 +497,14 @@ function Block({
 }) {
   const cls =
     tone === "danger"
-      ? "border-red-200 bg-red-50"
+      ? "border-[var(--danger)]/30 bg-[var(--danger)]/5"
       : tone === "warning"
-        ? "border-yellow-200 bg-yellow-50"
-        : "border-gray-200";
+        ? "border-[var(--warn)]/30 bg-[var(--warn)]/5"
+        : "border-white/10 bg-white/5";
   return (
     <section className={`rounded-lg border p-5 ${cls}`}>
       <h2 className="font-semibold">{title}</h2>
-      <div className="mt-2 text-gray-800">{children}</div>
+      <div className="mt-2 text-[var(--text)]">{children}</div>
     </section>
   );
 }
@@ -503,14 +512,14 @@ function Block({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[140px_1fr] gap-3">
-      <dt className="text-gray-500">{label}</dt>
-      <dd className="text-gray-900">{children}</dd>
+      <dt className="text-[var(--muted)]">{label}</dt>
+      <dd className="text-[var(--text)]">{children}</dd>
     </div>
   );
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16 text-center text-gray-700">{children}</main>
+    <main className="mx-auto max-w-2xl px-6 py-16 text-center text-[var(--muted)]">{children}</main>
   );
 }
