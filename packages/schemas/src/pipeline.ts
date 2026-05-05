@@ -35,19 +35,41 @@ export const SUPPORTED_TYPES: DocumentType[] = [
 ];
 
 export const ClassifyOutputSchema = z.object({
-  type: DocumentTypeEnum,
-  confidence: z.number().min(0).max(1),
-  reason: z.string().max(300),
+  // Толерантно к опечаткам/синонимам: незнакомое значение → "ne_opredelen",
+  // чтобы не валить весь разбор из-за расхождения в одну букву.
+  type: DocumentTypeEnum.catch("ne_opredelen"),
+  confidence: z.number().min(0).max(1).catch(0),
+  reason: z.string().max(300).catch(""),
 });
 export type ClassifyOutput = z.infer<typeof ClassifyOutputSchema>;
 
 // ---------- Извлечение полей ----------
 
 // Хелпер: модель может вернуть null вместо пустой строки — нормализуем.
+// Также LLM иногда пишет литералы как текст ("null", "none", "нет данных") —
+// тоже превращаем в пустую строку, чтобы UI не показывал слово "null".
 // На входе принимаем string | null | undefined, на выходе — всегда string.
+const NULLISH_LITERALS = new Set([
+  "null",
+  "none",
+  "n/a",
+  "na",
+  "undefined",
+  "нет",
+  "нет данных",
+  "не указано",
+  "не определено",
+  "—",
+  "-",
+]);
 const nullableString = z
   .union([z.string(), z.null(), z.undefined()])
-  .transform((v) => v ?? "");
+  .transform((v) => {
+    if (v === null || v === undefined) return "";
+    const trimmed = v.trim();
+    if (NULLISH_LITERALS.has(trimmed.toLowerCase())) return "";
+    return v;
+  });
 
 export const MoneySchema = z.object({
   amount_rub: z.number().nullable(),
