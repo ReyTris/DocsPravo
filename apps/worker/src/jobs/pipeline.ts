@@ -3,10 +3,17 @@
  */
 
 import { prisma } from "@pravoletter/db";
-import { runPipeline, PIPELINE_VERSION } from "@pravoletter/core";
+import {
+  runPipeline,
+  PIPELINE_VERSION,
+  runVisionPipeline,
+  VISION_PIPELINE_VERSION,
+} from "@pravoletter/core";
+import type { PipelineResult } from "@pravoletter/schemas";
 import { downloadObject } from "../storage";
-import { ocrDocument } from "../ocr";
+import { ocrDocument, preprocessImage } from "../ocr";
 import { getProvider } from "../llm";
+import { env } from "../env";
 
 export async function handlePipelineJob(documentId: string): Promise<void> {
   const doc = await prisma.document.findUnique({
@@ -46,51 +53,144 @@ type DocWithFiles = NonNullable<
 
 async function runPipelineJob(documentId: string, doc: DocWithFiles): Promise<void> {
   // Если есть привязанные файлы — обрабатываем все. Иначе legacy: один storageKey.
-  const filesToOcr =
+  type FileToProcess = { id: string; storageKey: string; contentType: string };
+  const filesToProcess: FileToProcess[] =
     doc.files.length > 0
-      ? doc.files.map((f) => ({
+      ? doc.files.map((f: FileToProcess) => ({
           id: f.id,
           storageKey: f.storageKey,
           contentType: f.contentType,
         }))
       : [{ id: doc.id, storageKey: doc.storageKey, contentType: doc.contentType }];
 
-  // OCR каждого файла; сохраняем текст по файлу + клеим в общий
-  const parts: string[] = [];
-  for (let i = 0; i < filesToOcr.length; i++) {
-    const f = filesToOcr[i]!;
-    const buffer = await downloadObject(f.storageKey);
-    const text = await ocrDocument(buffer, f.contentType);
-    parts.push(`=== Страница ${i + 1} ===\n${text}`);
-    if (doc.files.length > 0) {
-      await prisma.documentFile.update({
-        where: { id: f.id },
-        data: { ocrText: text },
-      });
+  let result: PipelineResult;
+  let pipelineVersion: string;
+  let ocrText: string | null = null;
+  const tStart = Date.now();
+
+  if (env.USE_VISION_PIPELINE) {
+    // === VISION-ВЕТКА: один VL-вызов вместо OCR + 3 LLM ===
+    if (!env.YANDEX_API_KEY || !env.YANDEX_FOLDER_ID) {
+      throw new Error("USE_VISION_PIPELINE=true: нужны YANDEX_API_KEY и YANDEX_FOLDER_ID");
     }
+    // Можно задать как короткое имя ("qwen3.6-35b-a3b/latest"), так и полный
+    // URI ("gpt://<folder>/..."). Если без префикса — добавляем сами,
+    // как делает YandexGPTProvider.
+    const rawModel = env.VISION_MODEL_URI ?? "qwen3.6-35b-a3b/latest";
+    const modelUri = rawModel.startsWith("gpt://")
+      ? rawModel
+      : `gpt://${env.YANDEX_FOLDER_ID}/${rawModel}`;
+
+    // Vision-модель принимает только изображения. PDF в этом режиме не поддержан.
+    const nonImage = filesToProcess.find((f) => !f.contentType.startsWith("image/"));
+    if (nonImage) {
+      throw new Error(
+        `Vision-пайплайн поддерживает только изображения, получен ${nonImage.contentType}`,
+      );
+    }
+
+    const tDownloadStart = Date.now();
+    const images = await Promise.all(
+      filesToProcess.map(async (f) => {
+        const buf = await downloadObject(f.storageKey);
+        const prepped = await preprocessImage(buf, f.contentType);
+        return prepped;
+      }),
+    );
+    const tDownloadEnd = Date.now();
+    const totalBytes = images.reduce((s: number, i) => s + i.buffer.length, 0);
+    console.log(
+      `[pipeline] document=${documentId} vision download+preprocess=${tDownloadEnd - tDownloadStart}ms ` +
+        `pages=${images.length} totalBytes=${totalBytes}`,
+    );
+
+    await prisma.document.update({
+      where: { id: documentId },
+      data: { status: "classify_processing" },
+    });
+
+    const tVisionStart = Date.now();
+    result = await runVisionPipeline({
+      apiKey: env.YANDEX_API_KEY,
+      folderId: env.YANDEX_FOLDER_ID,
+      modelUri,
+      images,
+    });
+    const tVisionEnd = Date.now();
+    pipelineVersion = VISION_PIPELINE_VERSION;
+
+    console.log(
+      `[pipeline] document=${documentId} vision pages=${filesToProcess.length} ` +
+        `download=${tDownloadEnd - tDownloadStart}ms vision=${tVisionEnd - tVisionStart}ms ` +
+        `total=${tVisionEnd - tStart}ms status=${result.status} tier=${result.tier ?? "-"} ` +
+        `error=${result.error ?? "-"} model=${modelUri}`,
+    );
+  } else {
+    // === OCR-ВЕТКА (классическая) ===
+    const tOcrStart = Date.now();
+    const perFileTimings: Array<{ idx: number; download: number; ocr: number; bytes: number }> = [];
+
+    const texts: string[] = new Array(filesToProcess.length);
+    await runWithConcurrency(filesToProcess.length, env.OCR_CONCURRENCY, async (i) => {
+      const f = filesToProcess[i]!;
+      const tDl = Date.now();
+      const buffer = await downloadObject(f.storageKey);
+      const tOcr = Date.now();
+      const text = await ocrDocument(buffer, f.contentType);
+      const tEnd = Date.now();
+      texts[i] = text;
+      perFileTimings.push({
+        idx: i,
+        download: tOcr - tDl,
+        ocr: tEnd - tOcr,
+        bytes: buffer.length,
+      });
+      if (doc.files.length > 0) {
+        await prisma.documentFile.update({
+          where: { id: f.id },
+          data: { ocrText: text },
+        });
+      }
+    });
+
+    ocrText = texts
+      .map((t, i) => `=== Страница ${i + 1} ===\n${t}`)
+      .join("\n\n");
+    const tOcrEnd = Date.now();
+    perFileTimings.sort((a, b) => a.idx - b.idx);
+    console.log(
+      `[pipeline] document=${documentId} ocrPhase=${tOcrEnd - tOcrStart}ms ` +
+        `files=${filesToProcess.length} concurrency=${env.OCR_CONCURRENCY} ` +
+        `perFile=${JSON.stringify(perFileTimings)}`,
+    );
+
+    const afterOcr = await prisma.document.findUnique({
+      where: { id: documentId },
+      select: { status: true },
+    });
+    if (afterOcr?.status === "cancelled") {
+      console.log(`[pipeline] document=${documentId} cancelled after OCR, skipping LLM`);
+      return;
+    }
+
+    await prisma.document.update({
+      where: { id: documentId },
+      data: { status: "classify_processing", ocrText },
+    });
+
+    const provider = getProvider();
+    const tLlmStart = Date.now();
+    result = await runPipeline(provider, ocrText);
+    const tLlmEnd = Date.now();
+    pipelineVersion = PIPELINE_VERSION;
+
+    console.log(
+      `[pipeline] document=${documentId} pages=${filesToProcess.length} ` +
+        `ocrPhase=${tOcrEnd - tOcrStart}ms llmPhase=${tLlmEnd - tLlmStart}ms ` +
+        `status=${result.status} tier=${result.tier ?? "-"} error=${result.error ?? "-"}`,
+    );
   }
-  const ocrText = parts.join("\n\n");
 
-  const afterOcr = await prisma.document.findUnique({
-    where: { id: documentId },
-    select: { status: true },
-  });
-  if (afterOcr?.status === "cancelled") {
-    console.log(`[pipeline] document=${documentId} cancelled after OCR, skipping LLM`);
-    return;
-  }
-
-  await prisma.document.update({
-    where: { id: documentId },
-    data: { status: "classify_processing", ocrText },
-  });
-
-  const provider = getProvider();
-  const result = await runPipeline(provider, ocrText);
-
-  console.log(
-    `[pipeline] document=${documentId} pages=${filesToOcr.length} status=${result.status} tier=${result.tier ?? "-"} error=${result.error ?? "-"}`,
-  );
   if (result.status === "error") {
     console.error(
       `[pipeline] full result:`,
@@ -141,13 +241,10 @@ async function runPipelineJob(documentId: string, doc: DocWithFiles): Promise<vo
         status: result.status,
         detectedType,
         classifyConfidence: result.classify?.confidence,
-        pipelineVersion: PIPELINE_VERSION,
-        promptVersions: {
-          navigator: "v1",
-          classify: "v1",
-          extract: "v1",
-          analyze: "v1",
-        },
+        pipelineVersion,
+        promptVersions: env.USE_VISION_PIPELINE
+          ? { vision: "v1" }
+          : { navigator: "v1", classify: "v1", extract: "v1", analyze: "v1" },
         modelName: result.meta.model,
         durationMs: result.meta.duration_ms,
       },
@@ -174,4 +271,24 @@ async function runPipelineJob(documentId: string, doc: DocWithFiles): Promise<vo
       });
     }
   });
+}
+
+/**
+ * Запускает обработку индексов 0..count-1 пачками по limit штук одновременно.
+ * Без внешних зависимостей (p-limit в монорепо нет).
+ */
+async function runWithConcurrency(
+  count: number,
+  limit: number,
+  task: (index: number) => Promise<void>,
+): Promise<void> {
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, count) }, async () => {
+    while (true) {
+      const i = cursor++;
+      if (i >= count) return;
+      await task(i);
+    }
+  });
+  await Promise.all(workers);
 }

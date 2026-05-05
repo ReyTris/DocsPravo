@@ -81,7 +81,9 @@ export default function UploadPage() {
     setUploading(true);
     setError(null);
     try {
+      const tStart = performance.now();
       setProgress("Готовим хранилище...");
+      const tReqUrlsStart = performance.now();
       const res = await requestUrls.mutateAsync({
         files: files.map((f) => ({
           filename: f.name,
@@ -89,26 +91,42 @@ export default function UploadPage() {
           sizeBytes: f.size,
         })),
       });
+      const tReqUrlsEnd = performance.now();
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
 
-      // Загрузка файлов параллельно по pre-signed URL.
-      for (let i = 0; i < res.files.length; i++) {
-        setProgress(`Загружаем файл ${i + 1} из ${res.files.length}...`);
-        const presigned = res.files[i]!;
-        const file = files[i]!;
-        const uploadRes = await fetch(presigned.uploadUrl, {
-          method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type },
-          signal: controller.signal,
-        });
-        if (!uploadRes.ok) {
-          throw new Error(`Ошибка загрузки "${file.name}": ${uploadRes.status}`);
-        }
-      }
+      // Параллельная загрузка всех файлов на S3 по pre-signed URL.
+      setProgress(`Загружаем ${res.files.length} ${plural(res.files.length, ["файл", "файла", "файлов"])}...`);
+      let uploaded = 0;
+      const tUploadStart = performance.now();
+      await Promise.all(
+        res.files.map(async (presigned, i) => {
+          const file = files[i]!;
+          const uploadRes = await fetch(presigned.uploadUrl, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type },
+            signal: controller.signal,
+          });
+          if (!uploadRes.ok) {
+            throw new Error(`Ошибка загрузки "${file.name}": ${uploadRes.status}`);
+          }
+          uploaded++;
+          setProgress(`Загружено ${uploaded} из ${res.files.length}...`);
+        }),
+      );
+      const tUploadEnd = performance.now();
 
       setProgress("Запускаем разбор...");
+      const tConfirmStart = performance.now();
       await confirmUpload.mutateAsync({ documentId: res.documentId });
+      const tConfirmEnd = performance.now();
+      console.log(
+        `[upload] timings ms: requestUrls=${(tReqUrlsEnd - tReqUrlsStart) | 0} ` +
+          `s3Upload=${(tUploadEnd - tUploadStart) | 0} ` +
+          `confirm=${(tConfirmEnd - tConfirmStart) | 0} ` +
+          `total=${(tConfirmEnd - tStart) | 0} ` +
+          `files=${res.files.length}`,
+      );
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
 
       router.push(`/documents/${res.documentId}`);

@@ -17,11 +17,11 @@ import { env } from "./env";
 const MIN_TEXT_LAYER_CHARS = 80;
 const MIN_PRINTABLE_RATIO = 0.6;
 
-// Yandex Vision: лимит 10 МБ на запрос и 20 МП. Длинная сторона 2200 px —
-// компромисс: мелкий печатный текст (реквизиты, печати) ещё читается, но
-// фото с телефона (4000+ px) ужимаются в ~5–10 раз.
-const MAX_LONG_SIDE_PX = 2200;
-const JPEG_QUALITY = 85;
+// Yandex Vision: лимит 10 МБ на запрос и 20 МП. 1800 px — мелкий печатный
+// текст (реквизиты, печати) ещё читается, но запрос ужимается ещё сильнее,
+// что заметно ускоряет передачу и саму OCR-обработку.
+const MAX_LONG_SIDE_PX = 1800;
+const JPEG_QUALITY = 80;
 
 export async function ocrDocument(buffer: Buffer, mime: string): Promise<string> {
   if (mime === "application/pdf") {
@@ -33,7 +33,7 @@ export async function ocrDocument(buffer: Buffer, mime: string): Promise<string>
   return ocrViaYandexVision(prepared, preparedMime);
 }
 
-async function preprocessImage(
+export async function preprocessImage(
   buffer: Buffer,
   mime: string,
 ): Promise<{ buffer: Buffer; mime: string }> {
@@ -88,6 +88,24 @@ function printableRatio(s: string): number {
   return printable / s.length;
 }
 
+// Глобальный сериализатор вызовов Yandex Vision: квота — жёсткий 1 RPS на
+// фолдер. Параллельный download/preprocess это не ограничивает,
+// сериализуется только сам HTTP-запрос. Соседние старты разнесены минимум
+// на VISION_MIN_INTERVAL_MS, что гарантированно укладывается в квоту без 429.
+const VISION_MIN_INTERVAL_MS = 1100;
+let visionGate: Promise<void> = Promise.resolve();
+
+function scheduleVisionSlot(): Promise<void> {
+  const prev = visionGate;
+  let release: () => void = () => {};
+  visionGate = new Promise<void>((res) => {
+    release = res;
+  });
+  return prev.then(() => {
+    setTimeout(() => release(), VISION_MIN_INTERVAL_MS);
+  });
+}
+
 async function ocrViaYandexVision(buffer: Buffer, mime: string): Promise<string> {
   if (!env.YANDEX_VISION_API_KEY || !env.YANDEX_VISION_FOLDER_ID) {
     throw new Error("Yandex Vision не сконфигурирован");
@@ -106,8 +124,10 @@ async function ocrViaYandexVision(buffer: Buffer, mime: string): Promise<string>
   };
 
   const MAX_ATTEMPTS = 4;
-  // Yandex Vision: лимит 1 req/sec. При 429 ждём с экспоненциальным backoff.
+  // Слот в очереди гарантирует ≤ 1 RPS глобально; ретраи — страховка от
+  // соседних воркеров и кратковременных скачков.
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    await scheduleVisionSlot();
     const res = await fetch("https://ocr.api.cloud.yandex.net/ocr/v1/recognizeText", {
       method: "POST",
       headers,

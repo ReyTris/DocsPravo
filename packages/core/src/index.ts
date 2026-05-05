@@ -1,4 +1,5 @@
 export * from "./pipeline";
+export * from "./vision-pipeline";
 export * from "./pii";
 export * from "./validators";
 export * from "./router";

@@ -21,6 +21,18 @@ const Env = z.object({
 
   YANDEX_VISION_API_KEY: z.string().optional(),
   YANDEX_VISION_FOLDER_ID: z.string().optional(),
+  OCR_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(5),
+
+  // Vision-пайплайн через Qwen 3.6-35B (или другую VL-модель) в Yandex AI Studio.
+  // Если включено — worker пропускает OCR + 3-шаговую LLM-цепочку и делает один
+  // VL-запрос. Использует YANDEX_API_KEY и YANDEX_FOLDER_ID.
+  USE_VISION_PIPELINE: z
+    .union([z.literal("true"), z.literal("false"), z.literal("")])
+    .default("false")
+    .transform((v) => v === "true"),
+  // Полный modelUri в формате `gpt://<folder>/qwen3.6-35b/latest`. Подсмотреть
+  // точное имя — в карточке модели в Yandex AI Studio (кнопка "Использовать в API").
+  VISION_MODEL_URI: z.string().optional(),
 });
 
 export const env = Env.parse(process.env);
