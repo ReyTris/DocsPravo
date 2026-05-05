@@ -36,3 +36,16 @@ body {
 }
 
 a { color: var(--brand); text-decoration: none; }
+
+input:not([type=checkbox]):not([type=radio]):not([type=file]),
+textarea,
+select {
+  background: var(--bg-2);
+  color: var(--text);
+  border-color: var(--card-border);
+}
+
+input:not([type=checkbox]):not([type=radio]):not([type=file])::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+}

@@ -59,7 +59,7 @@ export default function LoginPage() {
           {login.isPending ? "Входим..." : "Войти"}
         </button>
       </form>
-      <p className="mt-4 text-sm text-gray-600">
+      <p className="mt-4 text-sm text-[var(--muted)]">
         Нет аккаунта?{" "}
         <Link href="/register" className="underline">
           Регистрация

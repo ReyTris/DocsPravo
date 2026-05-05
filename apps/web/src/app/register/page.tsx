@@ -81,7 +81,7 @@ export default function RegisterPage() {
           {register.isPending ? "Создаём..." : "Зарегистрироваться"}
         </button>
       </form>
-      <p className="mt-4 text-sm text-gray-600">
+      <p className="mt-4 text-sm text-[var(--muted)]">
         Уже есть аккаунт?{" "}
         <Link href="/login" className="underline">
           Войти

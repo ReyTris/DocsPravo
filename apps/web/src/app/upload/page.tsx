@@ -134,7 +134,7 @@ export default function UploadPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <h1 className="text-2xl font-bold">Загрузить письмо</h1>
-      <p className="mt-2 text-sm text-gray-600">
+      <p className="mt-2 text-sm text-[var(--muted)]">
         PDF или фото письма. Можно несколько страниц/листов одного документа — они будут
         объединены в один разбор.
       </p>
@@ -144,7 +144,7 @@ export default function UploadPage() {
         onDrop={onDrop}
         className="mt-6 rounded-xl border-2 border-dashed p-8 text-center hover:border-gray-400"
       >
-        <p className="text-sm text-gray-600">Перетащите файлы сюда</p>
+        <p className="text-sm text-[var(--muted)]">Перетащите файлы сюда</p>
         <label className="mt-3 inline-block cursor-pointer rounded-md bg-black px-4 py-2 text-sm text-white">
           Выбрать файлы
           <input
@@ -155,7 +155,7 @@ export default function UploadPage() {
             className="hidden"
           />
         </label>
-        <p className="mt-3 text-xs text-gray-500">
+        <p className="mt-3 text-xs text-[var(--muted)]">
           PDF, JPEG, PNG, HEIC · до 20 МБ каждый · максимум {MAX_FILES} файлов
         </p>
       </div>
@@ -165,11 +165,11 @@ export default function UploadPage() {
           {files.map((f, idx) => (
             <li
               key={`${f.name}_${f.size}_${idx}`}
-              className="flex items-center justify-between rounded-md border bg-white p-3 text-sm"
+              className="flex items-center justify-between rounded-md border border-white/10 bg-white/5 p-3 text-sm"
             >
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{f.name}</div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-[var(--muted)]">
                   {(f.size / 1024).toFixed(0)} КБ · {f.type}
                 </div>
               </div>
@@ -177,7 +177,7 @@ export default function UploadPage() {
                 <button
                   onClick={() => moveFile(idx, -1)}
                   disabled={idx === 0 || uploading}
-                  className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                  className="rounded px-2 py-1 text-[var(--muted)] hover:bg-white/10 disabled:opacity-30"
                   title="Выше"
                 >
                   ↑
@@ -185,7 +185,7 @@ export default function UploadPage() {
                 <button
                   onClick={() => moveFile(idx, 1)}
                   disabled={idx === files.length - 1 || uploading}
-                  className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                  className="rounded px-2 py-1 text-[var(--muted)] hover:bg-white/10 disabled:opacity-30"
                   title="Ниже"
                 >
                   ↓
@@ -193,7 +193,7 @@ export default function UploadPage() {
                 <button
                   onClick={() => removeFile(idx)}
                   disabled={uploading}
-                  className="rounded px-2 py-1 text-red-600 hover:bg-red-50 disabled:opacity-30"
+                  className="rounded px-2 py-1 text-[var(--danger)] hover:bg-white/10 disabled:opacity-30"
                   title="Удалить"
                 >
                   ✕
@@ -222,18 +222,18 @@ export default function UploadPage() {
           {uploading && (
             <button
               onClick={cancelUpload}
-              className="rounded-md border border-gray-300 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-white/20 px-4 py-3 text-sm text-[var(--muted)] hover:bg-white/10"
             >
               Отменить
             </button>
           )}
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-[var(--muted)]">
             Всего: {(totalBytes / 1024 / 1024).toFixed(1)} МБ
           </span>
         </div>
       )}
 
-      <div className="mt-10 rounded-md border bg-yellow-50 p-4 text-xs text-yellow-900">
+      <div className="mt-10 rounded-md border border-[var(--warn)]/30 bg-[var(--warn)]/10 p-4 text-xs text-[var(--warn)]">
         ⚠️ Мы не запрашиваем оригиналы и не передаём данные в иностранные сервисы.
         Все файлы хранятся на серверах в РФ и автоматически удаляются через 30 дней.
         Сервис информационный, не заменяет юриста.
