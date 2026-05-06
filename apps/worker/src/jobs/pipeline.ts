@@ -62,7 +62,13 @@ async function runPipelineJob(documentId: string, doc: DocWithFiles): Promise<vo
   let ocrText: string | null = null;
   const tStart = Date.now();
 
-  if (env.USE_VISION_PIPELINE) {
+  // Vision-модель работает только с картинками. Если включена, но в документе
+  // есть PDF/DOCX/TXT/manual-text — автоматически откатываемся на OCR-ветку.
+  const allImages =
+    filesToProcess.length > 0 && filesToProcess.every((f) => f.contentType.startsWith("image/"));
+  const useVision = env.USE_VISION_PIPELINE && allImages;
+
+  if (useVision) {
     // === VISION-ВЕТКА: один VL-вызов вместо OCR + 3 LLM ===
     if (!env.YANDEX_API_KEY || !env.YANDEX_FOLDER_ID) {
       throw new Error("USE_VISION_PIPELINE=true: нужны YANDEX_API_KEY и YANDEX_FOLDER_ID");
@@ -74,14 +80,6 @@ async function runPipelineJob(documentId: string, doc: DocWithFiles): Promise<vo
     const modelUri = rawModel.startsWith("gpt://")
       ? rawModel
       : `gpt://${env.YANDEX_FOLDER_ID}/${rawModel}`;
-
-    // Vision-модель принимает только изображения. PDF в этом режиме не поддержан.
-    const nonImage = filesToProcess.find((f) => !f.contentType.startsWith("image/"));
-    if (nonImage) {
-      throw new Error(
-        `Vision-пайплайн поддерживает только изображения, получен ${nonImage.contentType}`,
-      );
-    }
 
     const tDownloadStart = Date.now();
     const images = await Promise.all(
@@ -118,6 +116,22 @@ async function runPipelineJob(documentId: string, doc: DocWithFiles): Promise<vo
         `download=${tDownloadEnd - tDownloadStart}ms vision=${tVisionEnd - tVisionStart}ms ` +
         `total=${tVisionEnd - tStart}ms status=${result.status} tier=${result.tier ?? "-"} ` +
         `error=${result.error ?? "-"} model=${modelUri}`,
+    );
+  } else if (doc.files.length === 0 && doc.ocrText && doc.ocrText.trim().length > 0) {
+    // === МАНУАЛЬНЫЙ ТЕКСТ: OCR пропускается, текст уже в БД ===
+    ocrText = doc.ocrText;
+    await prisma.document.update({
+      where: { id: documentId },
+      data: { status: "classify_processing" },
+    });
+    const provider = getProvider();
+    const tLlmStart = Date.now();
+    result = await runPipeline(provider, ocrText);
+    const tLlmEnd = Date.now();
+    pipelineVersion = PIPELINE_VERSION;
+    console.log(
+      `[pipeline] document=${documentId} manual-text llmPhase=${tLlmEnd - tLlmStart}ms ` +
+        `status=${result.status} tier=${result.tier ?? "-"} error=${result.error ?? "-"}`,
     );
   } else {
     // === OCR-ВЕТКА (классическая) ===

@@ -3,6 +3,8 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
   ConfirmUploadInput,
+  CreateFromTextInput,
+  CreateFromTextOutput,
   DocumentDetail,
   DocumentSummary,
   Pagination,
@@ -114,6 +116,54 @@ export const documentsRouter = router({
       );
 
       return { documentId, files: presigned, expiresInSec };
+    }),
+
+  /**
+   * Создаёт документ из текста, введённого вручную. OCR пропускается —
+   * pipeline сразу идёт в классификацию.
+   */
+  createFromText: protectedProcedure
+    .input(CreateFromTextInput)
+    .output(CreateFromTextOutput)
+    .mutation(async ({ ctx, input }) => {
+      const documentId = randomUUID();
+      // Postgres text не принимает NUL-байт, а копипаст из PDF/Word нередко
+      // приносит \x00 и одиночные суррогаты — чистим до записи в БД.
+      const text = input.text
+        .replace(/ /g, "")
+        .replace(/[\uD800-\uDFFF]/g, "")
+        .replace(/\r\n/g, "\n")
+        .trim();
+      const filename = (input.title?.trim() || "Текстовый документ").slice(0, 255);
+      // storageKey должен быть уникальным (constraint в БД), реальных файлов нет.
+      const storageKey = `manual-text/${ctx.user.id}/${documentId}`;
+      await ctx.db.document.create({
+        data: {
+          id: documentId,
+          userId: ctx.user.id,
+          status: "uploaded",
+          filename,
+          contentType: "text/plain",
+          sizeBytes: Buffer.byteLength(text, "utf8"),
+          storageKey,
+          ocrText: text,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
+      });
+      // Сразу ставим в очередь — отдельный confirmUpload не нужен.
+      await ctx.db.document.update({
+        where: { id: documentId },
+        data: { status: "ocr_processing" },
+      });
+      try {
+        await enqueuePipelineJob(documentId);
+      } catch (err) {
+        await ctx.db.document
+          .update({ where: { id: documentId }, data: { status: "error" } })
+          .catch(() => {});
+        throw err;
+      }
+      return { documentId };
     }),
 
   confirmUpload: protectedProcedure

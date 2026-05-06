@@ -5,14 +5,48 @@ import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { isAuthenticated } from "@/lib/auth-client";
 
-const ACCEPTED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/heic"] as const;
+const ACCEPTED_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/heic",
+  "text/plain",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+] as const;
 type AcceptedType = (typeof ACCEPTED_TYPES)[number];
+
+// Для некоторых типов браузер не всегда корректно проставляет MIME — определим
+// дополнительно по расширению.
+function detectMime(file: File): AcceptedType | null {
+  if ((ACCEPTED_TYPES as readonly string[]).includes(file.type)) {
+    return file.type as AcceptedType;
+  }
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".heic")) return "image/heic";
+  if (lower.endsWith(".txt")) return "text/plain";
+  if (lower.endsWith(".doc")) return "application/msword";
+  if (lower.endsWith(".docx"))
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  return null;
+}
+
 const MAX_BYTES = 20 * 1024 * 1024;
 const MAX_FILES = 20;
+const MAX_TEXT_LEN = 50_000;
+const MIN_TEXT_LEN = 20;
+
+type Mode = "files" | "text";
 
 export default function UploadPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<Mode>("files");
   const [files, setFiles] = useState<File[]>([]);
+  const [text, setText] = useState("");
+  const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<string>("");
@@ -20,6 +54,7 @@ export default function UploadPage() {
 
   const requestUrls = trpc.documents.requestUploadUrls.useMutation();
   const confirmUpload = trpc.documents.confirmUpload.useMutation();
+  const createFromText = trpc.documents.createFromText.useMutation();
 
   useEffect(() => {
     if (!isAuthenticated()) router.replace("/login");
@@ -43,11 +78,15 @@ export default function UploadPage() {
     setError(null);
     const next = [...files];
     for (const f of incoming) {
-      if (!ACCEPTED_TYPES.includes(f.type as AcceptedType)) {
-        setError(`Файл "${f.name}": формат не поддерживается. PDF, JPEG, PNG, HEIC.`);
+      const mime = detectMime(f);
+      if (!mime) {
+        setError(`Файл "${f.name}": формат не поддерживается. PDF, JPEG, PNG, HEIC, TXT, DOC, DOCX.`);
         continue;
       }
-      if (f.size > MAX_BYTES) {
+      // Если браузер не выставил MIME (часто для .heic/.docx) — пересоздаём File
+      // с правильным типом, чтобы и валидация, и Content-Type в presigned-PUT совпали.
+      const normalized = f.type === mime ? f : new File([f], f.name, { type: mime });
+      if (normalized.size > MAX_BYTES) {
         setError(`Файл "${f.name}" больше 20 МБ.`);
         continue;
       }
@@ -56,8 +95,8 @@ export default function UploadPage() {
         break;
       }
       // дедупликация по имени + размеру
-      if (next.some((x) => x.name === f.name && x.size === f.size)) continue;
-      next.push(f);
+      if (next.some((x) => x.name === normalized.name && x.size === normalized.size)) continue;
+      next.push(normalized);
     }
     setFiles(next);
   }
@@ -133,38 +172,157 @@ export default function UploadPage() {
     abortRef.current?.abort();
   }
 
+  async function submitText() {
+    setError(null);
+    const trimmed = text.trim();
+    if (trimmed.length < MIN_TEXT_LEN) {
+      setError(`Текст слишком короткий (минимум ${MIN_TEXT_LEN} символов).`);
+      return;
+    }
+    if (trimmed.length > MAX_TEXT_LEN) {
+      setError(`Текст слишком длинный (максимум ${MAX_TEXT_LEN} символов).`);
+      return;
+    }
+    setUploading(true);
+    setProgress("Отправляем текст...");
+    try {
+      const res = await createFromText.mutateAsync({
+        text: trimmed,
+        title: title.trim() || undefined,
+      });
+      router.push(`/documents/${res.documentId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось отправить текст.");
+      setUploading(false);
+      setProgress("");
+    }
+  }
+
   const totalBytes = files.reduce((s, f) => s + f.size, 0);
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <h1 className="text-2xl font-bold">Загрузить письмо</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        PDF или фото письма. Можно несколько страниц/листов одного документа — они будут
-        объединены в один разбор.
+        PDF, фото или Word-документ. Можно несколько страниц/листов одного документа — они будут
+        объединены в один разбор. Либо вставьте текст вручную.
       </p>
 
-      <div
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={onDrop}
-        className="mt-6 rounded-xl border-2 border-dashed p-8 text-center hover:border-gray-400"
-      >
-        <p className="text-sm text-[var(--muted)]">Перетащите файлы сюда</p>
-        <label className="mt-3 inline-block cursor-pointer rounded-md bg-black px-4 py-2 text-sm text-white">
-          Выбрать файлы
-          <input
-            type="file"
-            multiple
-            accept={ACCEPTED_TYPES.join(",")}
-            onChange={onFileInput}
-            className="hidden"
-          />
-        </label>
-        <p className="mt-3 text-xs text-[var(--muted)]">
-          PDF, JPEG, PNG, HEIC · до 20 МБ каждый · максимум {MAX_FILES} файлов
-        </p>
+      <div role="tablist" className="mt-6 inline-flex rounded-md border border-white/10 p-1 text-sm">
+        <button
+          role="tab"
+          aria-selected={mode === "files"}
+          onClick={() => {
+            setMode("files");
+            setError(null);
+          }}
+          disabled={uploading}
+          className={
+            "rounded px-4 py-2 " +
+            (mode === "files" ? "bg-white/10 font-medium" : "text-[var(--muted)] hover:bg-white/5")
+          }
+        >
+          Файлы
+        </button>
+        <button
+          role="tab"
+          aria-selected={mode === "text"}
+          onClick={() => {
+            setMode("text");
+            setError(null);
+          }}
+          disabled={uploading}
+          className={
+            "rounded px-4 py-2 " +
+            (mode === "text" ? "bg-white/10 font-medium" : "text-[var(--muted)] hover:bg-white/5")
+          }
+        >
+          Текст
+        </button>
       </div>
 
-      {files.length > 0 && (
+      {mode === "files" && (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Зона перетаскивания файлов"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={onDrop}
+          className="mt-6 rounded-xl border-2 border-dashed p-8 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-white/30"
+        >
+          <p className="text-sm text-[var(--muted)]">Перетащите файлы сюда</p>
+          <label className="mt-3 inline-block cursor-pointer rounded-md bg-black px-4 py-2 text-sm text-white">
+            Выбрать файлы
+            <input
+              type="file"
+              multiple
+              accept={[
+                ".pdf",
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".heic",
+                ".txt",
+                ".doc",
+                ".docx",
+                ...ACCEPTED_TYPES,
+              ].join(",")}
+              onChange={onFileInput}
+              className="hidden"
+            />
+          </label>
+          <p className="mt-3 text-xs text-[var(--muted)]">
+            PDF, JPEG, PNG, HEIC, TXT, DOC, DOCX · до 20 МБ каждый · максимум {MAX_FILES} файлов
+          </p>
+        </div>
+      )}
+
+      {mode === "text" && (
+        <div className="mt-6 space-y-3">
+          <div>
+            <label htmlFor="doc-title" className="block text-sm font-medium">
+              Заголовок (необязательно)
+            </label>
+            <input
+              id="doc-title"
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={uploading}
+              maxLength={255}
+              placeholder="Например: Требование ФНС от 12.03.2026"
+              className="mt-1 w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="doc-text" className="block text-sm font-medium">
+              Текст документа
+            </label>
+            <textarea
+              id="doc-text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              disabled={uploading}
+              maxLength={MAX_TEXT_LEN}
+              rows={14}
+              placeholder="Вставьте сюда полный текст письма / документа..."
+              className="mt-1 w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 font-mono text-sm"
+            />
+            <div className="mt-1 text-right text-xs text-[var(--muted)]">
+              {text.length.toLocaleString("ru-RU")} / {MAX_TEXT_LEN.toLocaleString("ru-RU")}
+            </div>
+          </div>
+          <button
+            onClick={submitText}
+            disabled={uploading || text.trim().length < MIN_TEXT_LEN}
+            className="rounded-md bg-black px-6 py-3 text-white disabled:bg-gray-400"
+          >
+            {uploading ? progress || "Отправляем..." : "Разобрать текст"}
+          </button>
+        </div>
+      )}
+
+      {mode === "files" && files.length > 0 && (
         <ul className="mt-6 space-y-2">
           {files.map((f, idx) => (
             <li
@@ -209,10 +367,12 @@ export default function UploadPage() {
       )}
 
       {error && (
-        <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        <div role="alert" aria-live="polite" className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
       )}
 
-      {files.length > 0 && (
+      {mode === "files" && files.length > 0 && (
         <div className="mt-6 flex items-center gap-4">
           <button
             onClick={startUpload}

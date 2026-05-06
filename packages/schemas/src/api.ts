@@ -54,10 +54,29 @@ export type DocumentStatus = z.infer<typeof DocumentStatus>;
 // Один файл (для одиночной загрузки или одного из массива)
 export const FileMeta = z.object({
   filename: z.string().max(255),
-  contentType: z.enum(["application/pdf", "image/jpeg", "image/png", "image/heic"]),
+  contentType: z.enum([
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/heic",
+    "text/plain",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ]),
   sizeBytes: z.number().int().positive().max(20 * 1024 * 1024), // 20 МБ
 });
 export type FileMeta = z.infer<typeof FileMeta>;
+
+// Ручной ввод текста — пропускает OCR, сразу идёт в классификацию.
+export const CreateFromTextInput = z.object({
+  text: z.string().min(20).max(50_000),
+  title: z.string().max(255).optional(),
+});
+export type CreateFromTextInput = z.infer<typeof CreateFromTextInput>;
+
+export const CreateFromTextOutput = z.object({
+  documentId: z.string().uuid(),
+});
 
 // Multi-upload: создаём документ + N файлов, возвращаем pre-signed URL для каждого.
 export const RequestUploadUrlsInput = z.object({
