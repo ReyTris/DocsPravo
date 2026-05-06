@@ -22,14 +22,13 @@ function HeroSection() {
       <div className="mx-auto max-w-[1120px] px-6">
         <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-[1.1fr_1fr]">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(108,140,255,0.3)] bg-[rgba(108,140,255,0.12)] px-3 py-1.5 text-[13px] font-medium text-[#c5d2ff]">
-              ● Без юриста · За 30 секунд · Без паники
+            <span className="inline-flex items-center gap-2 rounded-full border border-[var(--card-border)] bg-[var(--card)] px-3 py-1.5 text-[13px] font-medium text-[var(--muted)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--ok)]" />
+              Без юриста · За 30 секунд · Без паники
             </span>
             <h1 className="mt-4 mb-4 text-[clamp(36px,5vw,56px)] font-extrabold leading-[1.08] tracking-[-0.02em]">
               Письмо от налоговой?{" "}
-              <span className="bg-gradient-to-r from-[#8aa6ff] via-[#c79bff] to-[#ff9ad8] bg-clip-text text-transparent">
-                Сначала выдохните.
-              </span>
+              <span className="hero-accent">Сначала выдохните.</span>
             </h1>
             <p className="mb-7 max-w-[540px] text-lg text-[var(--muted)]">
               Загрузите фото или PDF официального документа — мы переведём канцелярит на человеческий язык,
@@ -44,7 +43,7 @@ function HeroSection() {
               </Link>
               <Link
                 href="#how"
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--card-border)] px-5 py-3 text-[15px] font-semibold text-[var(--text)] hover:bg-white/5"
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--card-border)] px-5 py-3 text-[15px] font-semibold text-[var(--text)] hover:bg-[var(--surface-hover)]"
               >
                 Как это работает
               </Link>
@@ -284,7 +283,7 @@ function PricingSection() {
                   "mt-6 inline-flex items-center justify-center rounded-xl px-5 py-3 text-[14px] font-semibold transition-transform hover:-translate-y-px " +
                   (p.highlight
                     ? "bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] text-white"
-                    : "border border-[var(--card-border)] text-[var(--text)] hover:bg-white/5")
+                    : "border border-[var(--card-border)] text-[var(--text)] hover:bg-[var(--surface-hover)]")
                 }
               >
                 Начать бесплатно →
@@ -313,18 +312,18 @@ function SafetySection() {
     <section id="safety" className="py-20">
       <div className="mx-auto max-w-[1120px] px-6">
         <div className="rounded-[20px] border border-[rgba(248,113,113,0.25)] bg-gradient-to-b from-[rgba(248,113,113,0.06)] to-[rgba(248,113,113,0.02)] p-9">
-          <span className="text-[13px] font-bold uppercase tracking-[0.12em] text-[#ffb4b4]">Важно прочитать</span>
-          <h2 className="mb-3 mt-2 text-[clamp(28px,3.5vw,40px)] font-extrabold tracking-[-0.01em] text-[#ffd2d2]">Чего сервис делать НЕ будет</h2>
-          <p className="mb-6 max-w-[680px] text-[17px] text-[#f3c5c5]">
+          <span className="text-[13px] font-bold uppercase tracking-[0.12em] text-[var(--danger)]">Важно прочитать</span>
+          <h2 className="mb-3 mt-2 text-[clamp(28px,3.5vw,40px)] font-extrabold tracking-[-0.01em] text-[var(--text)]">Чего сервис делать НЕ будет</h2>
+          <p className="mb-6 max-w-[680px] text-[17px] text-[var(--muted)]">
             Мы честны с вами: ИИ помогает разобраться быстрее, но не заменяет юриста и не несёт ответственность за юридические решения.
           </p>
           <div className="grid gap-3.5 sm:grid-cols-2">
             {warns.map((w) => (
               <div key={w.title} className="rounded-xl border border-[rgba(248,113,113,0.2)] bg-[rgba(248,113,113,0.06)] px-[18px] py-4">
-                <h4 className="mb-1.5 flex items-center gap-2 text-[15px] font-semibold text-[#ffe1e1] before:text-[var(--danger)] before:content-['⚠']">
+                <h4 className="mb-1.5 flex items-center gap-2 text-[15px] font-semibold text-[var(--text)] before:text-[var(--danger)] before:content-['⚠']">
                   {w.title}
                 </h4>
-                <p className="m-0 text-[14px] text-[#d8c1c1]">{w.body}</p>
+                <p className="m-0 text-[14px] text-[var(--muted)]">{w.body}</p>
               </div>
             ))}
           </div>

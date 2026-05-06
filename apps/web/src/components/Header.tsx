@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { clearTokens, hasSession } from "@/lib/auth-client";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function Header() {
   const [authed, setAuthed] = useState(false);
@@ -19,7 +20,7 @@ export function Header() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-10 border-b border-[var(--card-border)] bg-[rgba(11,16,32,0.6)] backdrop-blur-md">
+    <header className="sticky top-0 z-10 border-b border-[var(--card-border)] bg-[var(--header-bg)] backdrop-blur-md">
       <div className="mx-auto flex max-w-[1120px] items-center justify-between px-6 py-3.5">
         <Link href="/" className="flex items-center gap-2.5 font-bold text-[18px] text-[var(--text)] no-underline">
           <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] text-[15px] font-extrabold text-white">
@@ -37,6 +38,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           {authed ? (
             <>
               <Link href="/documents" className="text-[14px] text-[var(--muted)] hover:text-[var(--text)] transition-colors">

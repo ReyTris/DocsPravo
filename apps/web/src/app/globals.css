@@ -2,11 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Светлая тема — по умолчанию (взято за основу landing-light.html) */
 :root {
+  --bg: #fbfaf6;
+  --bg-2: #f3efe6;
+  --card: #ffffff;
+  --card-border: #e8e3d6;
+  --text: #1c1d22;
+  --muted: #6b6f7a;
+  --brand: #2c5d4f;
+  --brand-2: #3a7a66;
+  --ok: #2c8a5a;
+  --warn: #c98a1c;
+  --danger: #c44b3c;
+  --radius: 16px;
+
+  --header-bg: rgba(251, 250, 246, 0.85);
+  --surface-hover: rgba(28, 29, 34, 0.05);
+  --body-gradient:
+    radial-gradient(1000px 500px at 90% -10%, #efe7d6 0%, transparent 55%),
+    radial-gradient(800px 400px at -10% 5%, #e6efe9 0%, transparent 60%);
+
+  --accent-from: #d97757;
+  --accent-via: #c46245;
+  --accent-to: #b1543a;
+}
+
+/* Тёмная тема */
+[data-theme="dark"] {
   --bg: #0b1020;
   --bg-2: #11172e;
-  --card: rgba(255,255,255,0.04);
-  --card-border: rgba(255,255,255,0.08);
+  --card: rgba(255, 255, 255, 0.04);
+  --card-border: rgba(255, 255, 255, 0.08);
   --text: #eaeefb;
   --muted: #98a2c3;
   --brand: #6c8cff;
@@ -14,7 +41,16 @@
   --ok: #34d399;
   --warn: #fbbf24;
   --danger: #f87171;
-  --radius: 16px;
+
+  --header-bg: rgba(11, 16, 32, 0.6);
+  --surface-hover: rgba(255, 255, 255, 0.05);
+  --body-gradient:
+    radial-gradient(1200px 600px at 80% -10%, #2a2270 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, #15356b 0%, transparent 60%);
+
+  --accent-from: #8aa6ff;
+  --accent-via: #c79bff;
+  --accent-to: #ff9ad8;
 }
 
 * { box-sizing: border-box; }
@@ -26,13 +62,11 @@ html, body {
 }
 
 body {
-  background:
-    radial-gradient(1200px 600px at 80% -10%, #2a2270 0%, transparent 60%),
-    radial-gradient(900px 500px at -10% 10%, #15356b 0%, transparent 60%),
-    var(--bg);
+  background: var(--body-gradient), var(--bg);
   color: var(--text);
   line-height: 1.55;
   min-height: 100vh;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 a { color: var(--brand); text-decoration: none; }
@@ -48,4 +82,12 @@ select {
 input:not([type=checkbox]):not([type=radio]):not([type=file])::placeholder,
 textarea::placeholder {
   color: var(--muted);
+}
+
+/* Градиент акцентного слова в hero — адаптивен под тему */
+.hero-accent {
+  background: linear-gradient(to right, var(--accent-from), var(--accent-via), var(--accent-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
