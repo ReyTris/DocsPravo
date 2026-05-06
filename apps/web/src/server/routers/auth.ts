@@ -7,7 +7,26 @@ import { router, publicProcedure } from "../trpc";
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from "../../lib/jwt";
 import { env } from "../../lib/env";
 
-async function issueTokens(db: InstanceType<typeof PrismaClient>, userId: string, role: "user" | "admin", ip: string | null, ua: string | null) {
+// OWASP-рекомендации argon2id (2024+). Фиксируем явно, чтобы апдейт библиотеки
+// не менял стоимость хеша незаметно.
+const ARGON2_OPTS = {
+  type: argon2.argon2id,
+  memoryCost: 65536, // 64 MiB
+  timeCost: 3,
+  parallelism: 4,
+} as const;
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+async function issueTokens(
+  db: InstanceType<typeof PrismaClient>,
+  userId: string,
+  role: "user" | "admin",
+  ip: string | null,
+  ua: string | null,
+) {
   const access = await signAccessToken({ sub: userId, role });
   const refresh = generateRefreshToken();
   const expiresAt = new Date(Date.now() + env().JWT_REFRESH_TTL_SEC * 1000);
@@ -26,11 +45,12 @@ export const authRouter = router({
     .input(RegisterInput)
     .output(TokenPair)
     .mutation(async ({ ctx, input }) => {
-      const existing = await ctx.db.user.findUnique({ where: { email: input.email } });
+      const email = normalizeEmail(input.email);
+      const existing = await ctx.db.user.findUnique({ where: { email } });
       if (existing) throw new TRPCError({ code: "CONFLICT", message: "Email уже занят" });
-      const passwordHash = await argon2.hash(input.password);
+      const passwordHash = await argon2.hash(input.password, ARGON2_OPTS);
       const user = await ctx.db.user.create({
-        data: { email: input.email, passwordHash },
+        data: { email, passwordHash },
       });
       // Сразу фиксируем согласие на обработку ПД (в UI чекбокс обязателен перед submit)
       await ctx.db.consent.create({
@@ -46,8 +66,14 @@ export const authRouter = router({
     .input(LoginInput)
     .output(TokenPair)
     .mutation(async ({ ctx, input }) => {
-      const user = await ctx.db.user.findUnique({ where: { email: input.email } });
-      if (!user || !user.passwordHash) {
+      const email = normalizeEmail(input.email);
+      const user = await ctx.db.user.findUnique({ where: { email } });
+      // Постоянное время ответа: всегда verify против чего-то, чтобы не утечь по таймингу
+      // факт существования пользователя.
+      const dummyHash =
+        "$argon2id$v=19$m=65536,t=3,p=4$ZHVtbXlzYWx0ZGVmYXVsdA$1m9z3X6yKYf9o0v4yqQz3gK0GZ5C8e3F0Fz3gK0GZ5C";
+      if (!user || !user.passwordHash || user.deletedAt) {
+        await argon2.verify(dummyHash, input.password).catch(() => false);
         throw new TRPCError({ code: "UNAUTHORIZED", message: "Неверный email или пароль" });
       }
       const ok = await argon2.verify(user.passwordHash, input.password);
@@ -60,18 +86,31 @@ export const authRouter = router({
     .output(TokenPair)
     .mutation(async ({ ctx, input }) => {
       const hash = hashRefreshToken(input.refreshToken);
-      const record = await ctx.db.refreshToken.findUnique({ where: { tokenHash: hash } });
-      if (!record || record.revokedAt || record.expiresAt < new Date()) {
-        throw new TRPCError({ code: "UNAUTHORIZED" });
-      }
-      // Ротация: выпускаем новые, старый отзываем
-      await ctx.db.refreshToken.update({
-        where: { id: record.id },
-        data: { revokedAt: new Date() },
+      // Ротация и выпуск — внутри одной транзакции, чтобы избежать состояния,
+      // когда старый отозван, а новый не записан.
+      return ctx.db.$transaction(async (tx) => {
+        const record = await tx.refreshToken.findUnique({ where: { tokenHash: hash } });
+        if (!record || record.revokedAt || record.expiresAt < new Date()) {
+          throw new TRPCError({ code: "UNAUTHORIZED" });
+        }
+        // Атомарный revoke: если кто-то параллельно уже отозвал — updateMany вернёт 0.
+        const revoked = await tx.refreshToken.updateMany({
+          where: { id: record.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        if (revoked.count === 0) {
+          // Параллельный refresh с тем же токеном — потенциальная replay-атака.
+          // Отзываем все активные токены пользователя для безопасности.
+          await tx.refreshToken.updateMany({
+            where: { userId: record.userId, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Token reuse detected" });
+        }
+        const user = await tx.user.findUnique({ where: { id: record.userId } });
+        if (!user || user.deletedAt) throw new TRPCError({ code: "UNAUTHORIZED" });
+        return issueTokens(tx as unknown as InstanceType<typeof PrismaClient>, user.id, user.role, ctx.ip, ctx.userAgent);
       });
-      const user = await ctx.db.user.findUnique({ where: { id: record.userId } });
-      if (!user) throw new TRPCError({ code: "UNAUTHORIZED" });
-      return issueTokens(ctx.db, user.id, user.role, ctx.ip, ctx.userAgent);
     }),
 
   logout: publicProcedure

@@ -435,7 +435,7 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
         </Block>
       )}
 
-      {a.need_lawyer.required && a.need_lawyer.reasons.length > 0 && (
+      {a.need_lawyer?.required && a.need_lawyer.reasons.length > 0 && (
         <Block title="⚖️ Когда нужен юрист" tone="danger">
           <ul className="list-disc space-y-1 pl-5">
             {a.need_lawyer.reasons.map((r, i) => (

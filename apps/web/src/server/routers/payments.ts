@@ -50,8 +50,13 @@ export const paymentsRouter = router({
       }
 
       const auth = Buffer.from(`${e.UKASSA_SHOP_ID}:${e.UKASSA_SECRET_KEY}`).toString("base64");
-      const res = await fetch("https://api.yookassa.ru/v3/payments", {
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 15_000);
+      let res: Response;
+      try {
+        res = await fetch("https://api.yookassa.ru/v3/payments", {
         method: "POST",
+        signal: ac.signal,
         headers: {
           Authorization: `Basic ${auth}`,
           "Idempotence-Key": idempotency,
@@ -81,12 +86,24 @@ export const paymentsRouter = router({
             ],
           },
         }),
-      });
+        });
+      } catch (err) {
+        clearTimeout(timer);
+        const aborted = err instanceof Error && err.name === "AbortError";
+        console.error("[payments] ukassa request failed", err);
+        throw new TRPCError({
+          code: aborted ? "TIMEOUT" : "INTERNAL_SERVER_ERROR",
+          message: aborted ? "Платёжный шлюз не отвечает" : "Ошибка платёжного шлюза",
+        });
+      }
+      clearTimeout(timer);
 
       if (!res.ok) {
+        const responseBody = await res.text().catch(() => "");
+        console.error(`[payments] ukassa ${res.status}: ${responseBody}`);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: `ЮKassa: ${res.status} ${await res.text()}`,
+          message: "Ошибка платёжного шлюза",
         });
       }
 
@@ -114,7 +131,7 @@ export const paymentsRouter = router({
   devMockPay: protectedProcedure
     .input(z.object({ documentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      if (process.env.NODE_ENV === "production") {
+      if (env().NODE_ENV === "production") {
         throw new TRPCError({ code: "FORBIDDEN", message: "DEV only" });
       }
       const doc = await ctx.db.document.findUnique({
@@ -149,7 +166,7 @@ export const paymentsRouter = router({
   devReset: protectedProcedure
     .input(z.object({ documentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      if (process.env.NODE_ENV === "production") {
+      if (env().NODE_ENV === "production") {
         throw new TRPCError({ code: "FORBIDDEN", message: "DEV only" });
       }
       const doc = await ctx.db.document.findUnique({

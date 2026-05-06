@@ -25,5 +25,15 @@ export function getBoss(): Promise<PgBoss> {
 
 export async function enqueuePipelineJob(documentId: string): Promise<void> {
   const boss = await getBoss();
-  await boss.send(QUEUE_PIPELINE, { documentId }, { retryLimit: 2, retryDelay: 30 });
+  // singletonKey = documentId — pg-boss не создаст второй активный job для того же документа
+  // (защита от двойного клика, race в reprocess, повторного confirmUpload).
+  await boss.send(
+    QUEUE_PIPELINE,
+    { documentId },
+    {
+      retryLimit: 2,
+      retryDelay: 30,
+      singletonKey: documentId,
+    },
+  );
 }

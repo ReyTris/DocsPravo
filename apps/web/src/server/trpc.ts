@@ -4,8 +4,20 @@ import type { Context } from "./context";
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
-  errorFormatter({ shape }) {
-    return shape;
+  errorFormatter({ shape, error }) {
+    const isProd = process.env.NODE_ENV === "production";
+    const isInternal =
+      error.code === "INTERNAL_SERVER_ERROR" ||
+      error.code === "PRECONDITION_FAILED";
+    return {
+      ...shape,
+      message: isProd && isInternal ? "Внутренняя ошибка" : shape.message,
+      data: {
+        ...shape.data,
+        // Никогда не отдаём стектрейсы клиенту.
+        stack: undefined,
+      },
+    };
   },
 });
 

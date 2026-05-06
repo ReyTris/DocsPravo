@@ -13,7 +13,7 @@ const EnvSchema = z.object({
 
   AUTH_SECRET: z.string().min(32),
   JWT_SECRET: z.string().min(32),
-  JWT_ACCESS_TTL_SEC: z.coerce.number().int().positive().default(1800),
+  JWT_ACCESS_TTL_SEC: z.coerce.number().int().positive().default(900),
   JWT_REFRESH_TTL_SEC: z.coerce.number().int().positive().default(2592000),
 
   OBJECT_STORAGE_ENDPOINT: z.string().url(),

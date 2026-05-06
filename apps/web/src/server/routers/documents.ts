@@ -119,20 +119,32 @@ export const documentsRouter = router({
   confirmUpload: protectedProcedure
     .input(ConfirmUploadInput)
     .mutation(async ({ ctx, input }) => {
-      const doc = await ctx.db.document.findUnique({
-        where: { id: input.documentId },
-      });
-      if (!doc || doc.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "NOT_FOUND" });
-      }
-      if (doc.status !== "uploaded") {
-        return { ok: true as const, alreadyProcessing: true };
-      }
-      await enqueuePipelineJob(input.documentId);
-      await ctx.db.document.update({
-        where: { id: input.documentId },
+      // Атомарная смена статуса uploaded → ocr_processing.
+      // updateMany с фильтром по userId+status гарантирует, что только владелец
+      // и только один раз переведёт документ в обработку (защита от race).
+      const updated = await ctx.db.document.updateMany({
+        where: { id: input.documentId, userId: ctx.user.id, status: "uploaded" },
         data: { status: "ocr_processing" },
       });
+      if (updated.count === 0) {
+        // Либо документ не найден, либо чужой, либо уже в обработке.
+        const exists = await ctx.db.document.findFirst({
+          where: { id: input.documentId, userId: ctx.user.id },
+          select: { id: true },
+        });
+        if (!exists) throw new TRPCError({ code: "NOT_FOUND" });
+        return { ok: true as const, alreadyProcessing: true };
+      }
+      try {
+        await enqueuePipelineJob(input.documentId);
+      } catch (err) {
+        // Откатываем статус, чтобы клиент мог повторить.
+        await ctx.db.document.updateMany({
+          where: { id: input.documentId, status: "ocr_processing" },
+          data: { status: "uploaded" },
+        });
+        throw err;
+      }
       return { ok: true as const };
     }),
 
@@ -147,11 +159,30 @@ export const documentsRouter = router({
       if (!doc || doc.userId !== ctx.user.id) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
-      await enqueuePipelineJob(input.id);
+      // Не запускаем повторно, если документ уже в обработке — дубль job через
+      // singletonKey всё равно не пройдёт, но и статус сбрасывать не надо.
+      const inProgress = new Set([
+        "ocr_processing",
+        "classify_processing",
+        "extract_processing",
+        "analyze_processing",
+      ]);
+      if (inProgress.has(doc.status)) {
+        return { ok: true as const, alreadyProcessing: true };
+      }
       await ctx.db.document.update({
         where: { id: input.id },
         data: { status: "ocr_processing" },
       });
+      try {
+        await enqueuePipelineJob(input.id);
+      } catch (err) {
+        await ctx.db.document.update({
+          where: { id: input.id },
+          data: { status: doc.status },
+        });
+        throw err;
+      }
       return { ok: true as const };
     }),
 

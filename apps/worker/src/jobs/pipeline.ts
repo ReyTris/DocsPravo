@@ -2,7 +2,7 @@
  * Главный job: OCR всех файлов документа → промт-цепочка → запись результата.
  */
 
-import { prisma } from "@pravoletter/db";
+import { prisma, type Prisma } from "@pravoletter/db";
 import {
   runPipeline,
   PIPELINE_VERSION,
@@ -41,15 +41,9 @@ export async function handlePipelineJob(documentId: string): Promise<void> {
   }
 }
 
-type DocWithFiles = NonNullable<
-  Awaited<
-    ReturnType<
-      typeof prisma.document.findUnique<{
-        include: { files: { orderBy: { position: "asc" } } };
-      }>
-    >
-  >
->;
+type DocWithFiles = Prisma.DocumentGetPayload<{
+  include: { files: true };
+}>;
 
 async function runPipelineJob(documentId: string, doc: DocWithFiles): Promise<void> {
   // Если есть привязанные файлы — обрабатываем все. Иначе legacy: один storageKey.
