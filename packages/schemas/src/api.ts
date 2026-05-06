@@ -9,6 +9,8 @@ import {
   ExtractOutputSchema,
   ClassifyOutputSchema,
   NavigatorOutputSchema,
+  StyleEnum,
+  StylizedOutputSchema,
   TierEnum,
 } from "./pipeline";
 
@@ -68,6 +70,7 @@ export type FileMeta = z.infer<typeof FileMeta>;
 export const CreateFromTextInput = z.object({
   text: z.string().min(20).max(50_000),
   title: z.string().max(255).optional(),
+  style: StyleEnum.optional(),
 });
 export type CreateFromTextInput = z.infer<typeof CreateFromTextInput>;
 
@@ -78,6 +81,7 @@ export const CreateFromTextOutput = z.object({
 // Multi-upload: создаём документ + N файлов, возвращаем pre-signed URL для каждого.
 export const RequestUploadUrlsInput = z.object({
   files: z.array(FileMeta).min(1).max(20),
+  style: StyleEnum.optional(),
 });
 
 export const PresignedFile = z.object({
@@ -128,6 +132,8 @@ export const DocumentDetail = DocumentSummary.extend({
   classify: ClassifyOutputSchema.nullable(),
   extract: ExtractOutputSchema.nullable(),
   analysis: AnalysisOutputSchema.nullable(),
+  style: StyleEnum.nullable(),
+  stylized: StylizedOutputSchema.nullable(),
 });
 export type DocumentDetail = z.infer<typeof DocumentDetail>;
 

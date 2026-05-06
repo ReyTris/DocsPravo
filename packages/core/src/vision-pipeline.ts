@@ -40,10 +40,28 @@ export interface VisionPipelineOptions {
    */
   modelUri: string;
   images: VisionImage[];
-  /** Default 16000. Qwen3-thinking может "думать" и тратить токены до финального ответа. */
+  /**
+   * Жёсткий лимит токенов. Если задан — используется как есть.
+   * Если не задан — считается автоматически: `8000 + pages * 2000`, максимум 64000.
+   * Qwen3-thinking «думает» в тех же токенах, поэтому многостраничным документам
+   * нужен запас, иначе ответ обрывается посреди JSON.
+   */
   maxTokens?: number;
   /** Default 60_000 ms. */
   timeoutMs?: number;
+}
+
+/**
+ * Бюджет токенов под число страниц. Базовая часть — на сам JSON-ответ
+ * (mood, шаги, факты ≈ 6-8k токенов независимо от числа страниц), плюс
+ * добавка на reasoning (~2000 токенов на страницу — с большим запасом).
+ * Потолок 64000 защищает от случайного перерасхода.
+ */
+export function computeVisionMaxTokens(pageCount: number): number {
+  const base = 8000;
+  const perPage = 2000;
+  const cap = 64000;
+  return Math.min(cap, base + Math.max(1, pageCount) * perPage);
 }
 
 const VisionCombinedSchema = z.object({
@@ -321,7 +339,7 @@ export async function runVisionPipeline(
   opts: VisionPipelineOptions,
 ): Promise<PipelineResult> {
   const t0 = Date.now();
-  const maxTokens = opts.maxTokens ?? 16000;
+  const maxTokens = opts.maxTokens ?? computeVisionMaxTokens(opts.images.length);
   const timeoutMs = opts.timeoutMs ?? 60_000;
   const baseMeta = {
     prompt_version: VISION_PIPELINE_VERSION,
@@ -339,16 +357,20 @@ export async function runVisionPipeline(
   }
 
   // Собираем сообщение: текст-инструкция + N картинок.
+  // `/no_think` — штатный токен Qwen3, отключающий внутренние «размышления».
+  // Без него модель на длинных многостраничных входах уходит в петлю reasoning_content
+  // и съедает весь бюджет токенов до того, как доходит до content.
+  const baseInstruction =
+    opts.images.length === 1
+      ? "Разбери этот документ и верни JSON по схеме."
+      : `Разбери документ из ${opts.images.length} страниц. Страницы идут в правильном порядке. Верни ОДИН общий JSON по схеме.`;
   const userContent: Array<
     | { type: "text"; text: string }
     | { type: "image_url"; image_url: { url: string } }
   > = [
     {
       type: "text",
-      text:
-        opts.images.length === 1
-          ? "Разбери этот документ и верни JSON по схеме."
-          : `Разбери документ из ${opts.images.length} страниц. Страницы идут в правильном порядке. Верни ОДИН общий JSON по схеме.`,
+      text: `${baseInstruction} /no_think`,
     },
     ...opts.images.map((img) => ({
       type: "image_url" as const,
@@ -371,12 +393,18 @@ export async function runVisionPipeline(
     temperature: 0.4,
     max_tokens: maxTokens,
     stream: false,
+    // vLLM-style ключ для отключения thinking у Qwen3. Если бэкенд его не
+    // понимает — игнорирует, нам не страшно. Дублирующая страховка к
+    // `/no_think` в user-сообщении.
+    chat_template_kwargs: { enable_thinking: false },
   };
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
 
   let raw: string;
+  let finishReason: string | undefined;
+  let usage: { prompt_tokens?: number; completion_tokens?: number } | undefined;
   try {
     const res = await fetch("https://llm.api.cloud.yandex.net/v1/chat/completions", {
       method: "POST",
@@ -404,14 +432,16 @@ export async function runVisionPipeline(
       usage?: { prompt_tokens?: number; completion_tokens?: number };
     };
     raw = json.choices[0]?.message.content ?? "";
+    finishReason = json.choices[0]?.finish_reason;
+    usage = json.usage;
     if (!raw.trim()) {
       // Диагностика: thinking-модели могут забить весь бюджет токенов
       // на размышления и не успеть дать финальный ответ.
       console.warn(
         "[vision] empty content. finish_reason=" +
-          (json.choices[0]?.finish_reason ?? "?") +
+          (finishReason ?? "?") +
           " usage=" +
-          JSON.stringify(json.usage ?? {}) +
+          JSON.stringify(usage ?? {}) +
           " hasReasoning=" +
           Boolean(json.choices[0]?.message.reasoning_content) +
           " rawSnippet=" +
@@ -431,11 +461,45 @@ export async function runVisionPipeline(
     return finalize({ status: "error" as const, error: "Пустой ответ модели" });
   }
 
-  const parsed = safeParseJson(raw);
+  // Qwen3-thinking иногда оставляет блоки <think>...</think> или <reasoning>...</reasoning>
+  // вокруг JSON. Срезаем перед парсингом.
+  const cleaned = raw
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, "");
+
+  const parsed = safeParseJson(cleaned);
+  if (parsed) {
+    // Чтобы по логам было видно, понадобилась ли «починка» хвоста.
+    if (cleaned.trim() !== JSON.stringify(parsed)) {
+      console.log(
+        `[vision] JSON parsed (possibly repaired). rawLen=${raw.length} ` +
+          `finish_reason=${finishReason ?? "?"}`,
+      );
+    }
+  }
   if (!parsed) {
+    // Подробная диагностика: кусок сырого ответа + finish_reason + usage.
+    // Без этого "не парсится JSON" отлаживать невозможно.
+    console.warn(
+      "[vision] JSON parse failed. finish_reason=" +
+        (finishReason ?? "?") +
+        " usage=" +
+        JSON.stringify(usage ?? {}) +
+        " maxTokens=" +
+        maxTokens +
+        " rawLen=" +
+        raw.length +
+        " head=" +
+        JSON.stringify(raw.slice(0, 400)) +
+        " tail=" +
+        JSON.stringify(raw.slice(-400)),
+    );
+    const hitLimit = finishReason === "length";
     return finalize({
       status: "error" as const,
-      error: "Не удалось распарсить JSON ответа модели",
+      error: hitLimit
+        ? `Ответ модели обрезан по лимиту токенов (max_tokens=${maxTokens}). Увеличьте VISION_MAX_TOKENS.`
+        : "Не удалось распарсить JSON ответа модели",
     });
   }
 
@@ -484,5 +548,49 @@ function safeParseJson(raw: string): unknown {
       return JSON.parse(trimmed.slice(first, last + 1));
     } catch {}
   }
+  // Попытка 4: ремонт несбалансированных скобок. Qwen-vision иногда обрывает
+  // ответ ровно на одну закрывающую `}` или `]` раньше, чем нужно (даже с
+  // finish_reason=stop). Считаем дисбаланс снаружи строк и дописываем.
+  const slice = first >= 0 ? trimmed.slice(first) : trimmed;
+  const repaired = repairBraces(slice);
+  if (repaired && repaired !== slice) {
+    try {
+      return JSON.parse(repaired);
+    } catch {}
+  }
   return null;
+}
+
+/**
+ * Дописывает в конец недостающие `]` и `}`, считая дисбаланс снаружи строк.
+ * Возвращает null, если строка явно сломана (нечётные кавычки и т.п.).
+ */
+function repairBraces(input: string): string | null {
+  let inString = false;
+  let escape = false;
+  let curly = 0;
+  let square = 0;
+  for (const ch of input) {
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") curly++;
+    else if (ch === "}") curly--;
+    else if (ch === "[") square++;
+    else if (ch === "]") square--;
+  }
+  if (inString || curly < 0 || square < 0) return null;
+  if (curly === 0 && square === 0) return input;
+  // Дописываем сначала недостающие `]`, потом `}` — обратный порядок открытия.
+  return input + "]".repeat(square) + "}".repeat(curly);
 }

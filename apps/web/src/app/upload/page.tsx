@@ -4,6 +4,35 @@ import { useState, useEffect, useCallback, useRef, type DragEvent, type ChangeEv
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { hasSession } from "@/lib/auth-client";
+import type { Style } from "@pravoletter/schemas";
+
+type StyleOption = {
+  value: Style;
+  label: string;
+  emoji: string;
+  hint: string;
+};
+
+const STYLE_OPTIONS: StyleOption[] = [
+  {
+    value: "normal",
+    label: "Обычный",
+    emoji: "📄",
+    hint: "Классический разбор без приколов",
+  },
+  {
+    value: "gopnik",
+    label: "Блатняк",
+    emoji: "🧢",
+    hint: "Братан с района объясняет по понятиям",
+  },
+  {
+    value: "yoda",
+    label: "Магистр Йода",
+    emoji: "🟢",
+    hint: "Мудрость Силы и инверсивный порядок слов",
+  },
+];
 
 const ACCEPTED_TYPES = [
   "application/pdf",
@@ -62,6 +91,7 @@ export default function UploadPage() {
   const [pageCounts, setPageCounts] = useState<Record<string, PageCount>>({});
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
+  const [style, setStyle] = useState<Style>("normal");
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<string>("");
@@ -185,6 +215,7 @@ export default function UploadPage() {
           contentType: f.type as AcceptedType,
           sizeBytes: f.size,
         })),
+        style,
       });
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
 
@@ -255,6 +286,7 @@ export default function UploadPage() {
       const res = await createFromText.mutateAsync({
         text: trimmed,
         title: title.trim() || undefined,
+        style,
       });
       balanceQuery.refetch();
       router.push(`/documents/${res.documentId}`);
@@ -354,6 +386,37 @@ export default function UploadPage() {
           Текст
         </button>
       </div>
+
+      <fieldset className="mt-6" disabled={uploading}>
+        <legend className="text-sm font-medium">Стиль разбора</legend>
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          Не меняет суть и цифры — только тон пересказа. Юридическая часть всегда доступна
+          в обычном виде.
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {STYLE_OPTIONS.map((opt) => {
+            const active = style === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setStyle(opt.value)}
+                aria-pressed={active}
+                className={
+                  "flex flex-col items-start gap-1 rounded-md border p-3 text-left text-sm transition " +
+                  (active
+                    ? "border-[var(--brand)] bg-[var(--brand)]/10 ring-1 ring-[var(--brand)]"
+                    : "border-white/10 bg-white/5 hover:bg-white/10")
+                }
+              >
+                <span className="text-lg">{opt.emoji}</span>
+                <span className="font-semibold">{opt.label}</span>
+                <span className="text-xs text-[var(--muted)]">{opt.hint}</span>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
 
       {mode === "files" && (
         <div

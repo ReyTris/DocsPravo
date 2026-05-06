@@ -94,6 +94,7 @@ export const documentsRouter = router({
           contentType: first.contentType,
           sizeBytes: filesData.reduce((sum, f) => sum + f.sizeBytes, 0),
           storageKey: first.storageKey,
+          style: input.style && input.style !== "normal" ? input.style : null,
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           files: {
             create: filesData.map((f) => ({
@@ -148,6 +149,7 @@ export const documentsRouter = router({
           sizeBytes: Buffer.byteLength(text, "utf8"),
           storageKey,
           ocrText: text,
+          style: input.style && input.style !== "normal" ? input.style : null,
           pagesCharged: 1,
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
@@ -356,10 +358,16 @@ export const documentsRouter = router({
             classify?: DocumentDetail["classify"];
             extract?: DocumentDetail["extract"];
             analysis?: DocumentDetail["analysis"];
+            stylized?: DocumentDetail["stylized"];
           }
         | undefined;
 
-      const paid = doc.payments.some((p) => p.status === "succeeded");
+      // В новой модели «оплата за страницы» баланс списывается при загрузке,
+      // поэтому отдельной оплаты за разбор больше нет. Поле paid оставлено в API
+      // для обратной совместимости, но больше не гейтит контент: всегда true,
+      // если документ удалось обработать (status=ready, analysis есть).
+      const hasPayment = doc.payments.some((p) => p.status === "succeeded");
+      const paid = hasPayment || !!result?.analysis;
       const tier = doc.tier ?? result?.tier ?? null;
 
       // Audit для red-документов: фиксируем каждое открытие. Это пригодится в суде —
@@ -390,8 +398,11 @@ export const documentsRouter = router({
         analysisAvailable: !!result?.analysis,
         navigator: result?.navigator ?? null,
         classify: result?.classify ?? null,
-        extract: paid ? (result?.extract ?? null) : null,
-        analysis: paid ? (result?.analysis ?? null) : null,
+        extract: result?.extract ?? null,
+        analysis: result?.analysis ?? null,
+        style:
+          ((doc as unknown as { style: string | null }).style as DocumentDetail["style"]) ?? null,
+        stylized: result?.stylized ?? null,
       };
     }),
 });
