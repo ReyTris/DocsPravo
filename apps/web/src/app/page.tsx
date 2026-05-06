@@ -248,36 +248,46 @@ function HeroSection() {
               <span className="h-2.5 w-2.5 rounded-full bg-[#ff6b6b]" />
               <span className="h-2.5 w-2.5 rounded-full bg-[#fbbf24]" />
               <span className="h-2.5 w-2.5 rounded-full bg-[#34d399]" />
-              <span className="ml-2 text-[13px] text-[var(--muted)]">Результат разбора · trebovanie_fns</span>
+              <span className="ml-2 text-[13px] text-[var(--muted)]">trebovanie_fns.pdf</span>
             </div>
-            <div className="mb-3.5 rounded-xl border border-[rgba(52,211,153,0.3)] bg-gradient-to-br from-[rgba(52,211,153,0.12)] to-[rgba(108,140,255,0.12)] p-4 font-medium">
-              <span className="mr-2 rounded-full bg-[rgba(52,211,153,0.2)] px-2 py-0.5 text-[11px] font-bold tracking-wide text-[var(--ok)]">
-                СПОКОЙНО
-              </span>
-              Это не суд и не приставы — обычное письмо налоговой. Заплатите 12 725 ₽ до 15 февраля, и вопрос закрыт.
+
+            <h3 className="mb-4 text-[22px] font-extrabold leading-tight tracking-[-0.01em] text-[var(--text)]">
+              Пример разбора
+            </h3>
+
+            <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-[var(--muted)]">
+              <span aria-hidden>📄</span>
+              <span>Что это за документ</span>
             </div>
+            <p className="mb-3 text-[13px] italic leading-snug text-[var(--muted)]">
+              Налоговая прислала требование заплатить транспортный налог и пени за 2024 год — пока без суда и приставов, обычное досудебное письмо.
+            </p>
             {[
-              ["Документ", "Требование № 45678 от 15.01.2026"],
-              ["Итого", "12 725 ₽ (налог + пени)"],
-              ["Срок", "до 15.02.2026"],
+              ["Отправитель", "ИФНС № 28 по г. Москве"],
+              ["Тип", "Требование об уплате налога и пеней"],
+              ["Ключевые даты", "15.01.2026 — выставлено\n15.02.2026 — крайний срок оплаты"],
+              ["Суммы", "12 500 ₽ — транспортный налог\n225 ₽ — пени"],
             ].map(([k, v]) => (
-              <div key={k} className="grid grid-cols-[130px_1fr] gap-x-3.5 gap-y-2 border-t border-[var(--card-border)] py-2.5 text-[14px]">
+              <div key={k} className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1 border-t border-[var(--card-border)] py-2 text-[13px]">
                 <b className="font-medium text-[var(--muted)]">{k}</b>
-                <span>{v}</span>
+                <span className="whitespace-pre-line italic text-[var(--text)]">{v}</span>
               </div>
             ))}
-            {[
-              "Откройте личный кабинет на nalog.gov.ru через Госуслуги",
-              "Проверьте, что сумма и УИН совпадают с письмом",
-              "Оплатите картой или СБП и сохраните чек",
-            ].map((text, i) => (
-              <div key={i} className="flex gap-3 border-t border-[var(--card-border)] py-2.5 text-[14px]">
-                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] text-[12px] font-bold text-white">
-                  {i + 1}
-                </span>
-                <span>{text}</span>
-              </div>
-            ))}
+
+            <div className="mt-4 flex items-start gap-2.5 border-l-2 border-[var(--ok)] pl-3">
+              <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--ok)]" aria-hidden />
+              <p className="m-0 text-[15px] font-semibold leading-snug">
+                Спокойно — это обычное письмо налоговой, а не суд. Заплати 12 725 ₽ до 15 февраля, и вопрос закрыт.
+              </p>
+            </div>
+
+            <div className="mt-4 mb-1.5 flex items-center gap-2 text-[13px] font-semibold text-[var(--muted)]">
+              <span aria-hidden>🎯</span>
+              <span>Чего хочет отправитель</span>
+            </div>
+            <p className="mb-3 text-[13px] italic leading-snug text-[var(--text)]">
+              Уплатить 12 725 ₽ до 15 февраля — налог и набежавшие пени. Больше от тебя ничего не требуют.
+            </p>
           </div>
         </div>
       </div>
