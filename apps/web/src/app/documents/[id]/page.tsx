@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { hasSession } from "@/lib/auth-client";
@@ -14,7 +14,6 @@ import type {
 const STYLE_LABEL: Record<Exclude<Style, "normal">, { emoji: string; label: string }> = {
   gopnik: { emoji: "🧢", label: "Блатняк" },
   yoda: { emoji: "🟢", label: "Магистр Йода" },
-  drunk_lawyer: { emoji: "🍻", label: "Пьяный юрист" },
 };
 
 const PROCESSING = new Set([
@@ -121,7 +120,13 @@ export default function DocumentPage() {
   }
 
   if (d.status === "error") {
-    return <Centered>Не удалось обработать документ. Попробуйте загрузить заново.</Centered>;
+    return (
+      <Centered>
+        Не удалось обработать документ. Попробуйте загрузить заново.
+        <br />
+        Страницы из квоты возвращены — повторная попытка ничего не спишет.
+      </Centered>
+    );
   }
 
   return (
@@ -195,33 +200,61 @@ function NavigatorBlock({
         </div>
       )}
       <dl className="mt-3 space-y-2 text-sm">
-        {nav.sender_text && <Row label="Отправитель">{nav.sender_text}</Row>}
-        {nav.document_kind_freeform && (
-          <Row label="Тип">{nav.document_kind_freeform}</Row>
+        {(showStyled ? stylized?.navigator_sender_text : nav.sender_text) && (
+          <Row label="Отправитель">
+            <span className={showStyled ? "italic" : ""}>
+              {showStyled ? stylized?.navigator_sender_text : nav.sender_text}
+            </span>
+          </Row>
+        )}
+        {(showStyled ? stylized?.navigator_document_kind : nav.document_kind_freeform) && (
+          <Row label="Тип">
+            <span className={showStyled ? "italic" : ""}>
+              {showStyled ? stylized?.navigator_document_kind : nav.document_kind_freeform}
+            </span>
+          </Row>
         )}
         {nav.key_dates.length > 0 && (
           <Row label="Ключевые даты">
             <ul className="space-y-1">
-              {nav.key_dates.map((d, i) => (
-                <li key={i}>
-                  <span className="font-medium">{d.date_iso ?? d.raw_text}</span>
-                  {d.what_for ? ` — ${d.what_for}` : ""}
-                </li>
-              ))}
+              {nav.key_dates.map((d, i) => {
+                const sw = showStyled
+                  ? stylized?.navigator_key_dates_what_for?.[i]
+                  : null;
+                const what = sw ?? d.what_for;
+                return (
+                  <li key={i}>
+                    <span className="font-medium">{d.date_iso ?? d.raw_text}</span>
+                    {what ? (
+                      <span className={showStyled ? "italic" : ""}> — {what}</span>
+                    ) : (
+                      ""
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </Row>
         )}
         {nav.key_amounts.length > 0 && (
           <Row label="Суммы">
             <ul className="space-y-1">
-              {nav.key_amounts.map((a, i) => (
-                <li key={i}>
-                  <span className="font-medium">
-                    {a.amount_rub !== null ? `${a.amount_rub.toLocaleString("ru-RU")} ₽` : "—"}
-                  </span>{" "}
-                  — {a.description}
-                </li>
-              ))}
+              {nav.key_amounts.map((a, i) => {
+                const sd = showStyled
+                  ? stylized?.navigator_key_amounts_description?.[i]
+                  : null;
+                const desc = sd ?? a.description;
+                return (
+                  <li key={i}>
+                    <span className="font-medium">
+                      {a.amount_rub !== null
+                        ? `${a.amount_rub.toLocaleString("ru-RU")} ₽`
+                        : "—"}
+                    </span>{" "}
+                    <span className={showStyled ? "italic" : ""}>— {desc}</span>
+                  </li>
+                );
+              })}
             </ul>
           </Row>
         )}
@@ -253,32 +286,13 @@ function AnalysisView({
   const pitfalls = a.pitfalls.filter((p) => p.title?.trim() || p.explanation?.trim());
   const steps = a.what_to_do_now.filter((s) => s.step?.trim() || s.detail?.trim());
 
-  const hasStyle =
-    !!stylized && stylized.style !== "normal" && (stylized.headline || stylized.summary);
-  const [styleOn, setStyleOn] = useState(true);
-  const showStyled = hasStyle && styleOn;
+  const showStyled =
+    !!stylized && stylized.style !== "normal" && (!!stylized.headline || !!stylized.summary);
   const styleMeta =
     stylized && stylized.style !== "normal" ? STYLE_LABEL[stylized.style] : null;
 
   return (
     <div className="mt-6 space-y-6">
-      {hasStyle && styleMeta && (
-        <div className="flex flex-wrap items-center gap-2 rounded-md border border-[var(--brand)]/30 bg-[var(--brand)]/5 p-3 text-sm">
-          <span className="text-base">{styleMeta.emoji}</span>
-          <span className="font-semibold">Стиль: {styleMeta.label}</span>
-          <span className="text-xs text-[var(--muted)]">
-            (только тон — даты, суммы и статьи неизменны)
-          </span>
-          <button
-            type="button"
-            onClick={() => setStyleOn((v) => !v)}
-            className="ml-auto rounded-md border border-white/10 px-3 py-1 text-xs hover:bg-white/10"
-          >
-            {styleOn ? "Показать обычный" : `Показать в стиле «${styleMeta.label}»`}
-          </button>
-        </div>
-      )}
-
       {showStyled && stylized?.headline ? (
         <div className="rounded-lg border-l-4 border-[var(--brand)] bg-[var(--brand)]/10 p-4 text-base font-medium">
           <span className="mr-2">{styleMeta?.emoji}</span>

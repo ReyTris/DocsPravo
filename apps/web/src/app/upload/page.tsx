@@ -32,12 +32,6 @@ const STYLE_OPTIONS: StyleOption[] = [
     emoji: "🟢",
     hint: "Мудрость Силы и инверсивный порядок слов",
   },
-  {
-    value: "drunk_lawyer",
-    label: "Пьяный юрист",
-    emoji: "🍻",
-    hint: "Сосед-адвокат на кухне после рюмки",
-  },
 ];
 
 const ACCEPTED_TYPES = [

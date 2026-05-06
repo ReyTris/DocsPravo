@@ -309,10 +309,9 @@ export type YellowSummaryOutput = z.infer<typeof YellowSummaryOutputSchema>;
 // остаётся в analysis.mood + analysis.essence.
 
 export const StyleEnum = z.enum([
-  "normal",        // без стилизации
-  "gopnik",        // блатняк-братан с района
-  "yoda",          // Магистр Йода
-  "drunk_lawyer",  // пьяный сосед-юрист
+  "normal",  // без стилизации
+  "gopnik",  // блатняк-братан с района
+  "yoda",    // Магистр Йода
 ]);
 export type Style = z.infer<typeof StyleEnum>;
 
@@ -374,6 +373,24 @@ export const StylizedOutputSchema = z.object({
   navigator_summary: nullableString.describe(
     "Стилизованный navigator.short_summary — пересказ документа простым языком",
   ),
+  navigator_sender_text: nullableString.describe(
+    "Стилизованный navigator.sender_text — название/описание отправителя (имена органов сохрани дословно)",
+  ),
+  navigator_document_kind: nullableString.describe(
+    "Стилизованный navigator.document_kind_freeform — как сам документ себя называет",
+  ),
+  navigator_key_dates_what_for: z
+    .array(z.string())
+    .default([])
+    .describe(
+      "Стилизованные подписи navigator.key_dates[].what_for, тот же порядок и длина (date_iso/raw_text не передаются)",
+    ),
+  navigator_key_amounts_description: z
+    .array(z.string())
+    .default([])
+    .describe(
+      "Стилизованные navigator.key_amounts[].description, тот же порядок и длина (amount_rub не передаётся)",
+    ),
 });
 export type StylizedOutput = z.infer<typeof StylizedOutputSchema>;
 

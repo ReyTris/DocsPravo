@@ -35,17 +35,6 @@ const STYLE_INSTRUCTIONS: Record<Exclude<Style, "normal">, string> = {
   «терпение», «мудрость», «тёмная сторона». Не перебарщивай — 1-2 отсылки на весь текст.
 - Без современного сленга и канцелярита.
 - Тон — наставительный, успокаивающий, но честный про последствия.`,
-
-  drunk_lawyer: `Стиль: «ПЬЯНЫЙ СОСЕД-ЮРИСТ НА КУХНЕ».
-- Сосед, который двадцать лет в адвокатуре, сегодня выпил, сидит на кухне и объясняет
-  «по-человечески, без этих ваших формулировок».
-- Ход мысли скачет: вставляет «ну вот смотри», «короче ты слушай сюда», «я тебе щас
-  объясню как есть», «да я в девяносто восьмом такие дела пачками закрывал», «не,
-  ну ты понял да?».
-- Иногда уходит в сторону на полпредложения и возвращается. Но СУТЬ держит — даты,
-  суммы, последствия называет точно.
-- Без мата, без оскорблений в адрес госорганов. Слегка иронично, но дружелюбно.
-- Обращается на «ты», по-свойски.`,
 };
 
 const SYSTEM_BASE = `Ты переписываешь готовый разбор официального документа в заданном стиле.
@@ -77,6 +66,10 @@ const SYSTEM_BASE = `Ты переписываешь готовый разбор
   "headline": "стилизованный mood.headline (1-2 фразы)",
   "summary": "стилизованная essence (3-6 предложений)",
   "navigator_summary": "стилизованный navigator.short_summary (5-10 предложений с фактами)",
+  "navigator_sender_text": "стилизованное описание отправителя (имена органов и их структуру переноси дословно — стилизуй только обрамляющий текст, если он есть)",
+  "navigator_document_kind": "стилизованное название типа документа (без выдумок)",
+  "navigator_key_dates_what_for": ["стилизованная подпись для даты 1", "..."],
+  "navigator_key_amounts_description": ["стилизованное описание суммы 1", "..."],
   "what_sender_wants": "стилизованный what_sender_wants (1-3 предложения)",
   "steps": [
     { "step": "стилизованный step", "detail": "стилизованный detail" }
@@ -114,6 +107,12 @@ function userMessage(input: StylizeInput): string {
     summary: a.essence ?? "",
     title: a.title ?? "",
     navigator_summary: input.navigator?.short_summary ?? "",
+    navigator_sender_text: input.navigator?.sender_text ?? "",
+    navigator_document_kind: input.navigator?.document_kind_freeform ?? "",
+    navigator_key_dates_what_for:
+      input.navigator?.key_dates.map((d) => d.what_for ?? "") ?? [],
+    navigator_key_amounts_description:
+      input.navigator?.key_amounts.map((a2) => a2.description ?? "") ?? [],
     what_sender_wants: a.what_sender_wants ?? "",
     steps: a.what_to_do_now.map((s) => ({
       step: s.step ?? "",
