@@ -5,7 +5,7 @@ import { httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import { useState, type ReactNode } from "react";
 import { trpc } from "@/lib/trpc";
-import { getAccessToken } from "@/lib/auth-client";
+import { getValidAccessToken } from "@/lib/auth-client";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -23,9 +23,13 @@ export function Providers({ children }: { children: ReactNode }) {
         httpBatchLink({
           url: "/api/trpc",
           transformer: superjson,
-          headers() {
-            const token = getAccessToken();
-            return token ? { Authorization: `Bearer ${token}` } : {};
+          // Кастомный fetch вместо `headers()`: даёт асинхронно дождаться
+          // валидного access-токена (с авто-рефрешем при истечении).
+          async fetch(input, init) {
+            const token = await getValidAccessToken();
+            const headers = new Headers(init?.headers);
+            if (token) headers.set("Authorization", `Bearer ${token}`);
+            return fetch(input, { ...init, headers });
           },
         }),
       ],

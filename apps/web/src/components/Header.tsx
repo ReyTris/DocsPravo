@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { clearTokens, isAuthenticated } from "@/lib/auth-client";
+import { clearTokens, hasSession } from "@/lib/auth-client";
 
 export function Header() {
   const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
-    const sync = () => setAuthed(isAuthenticated());
+    const sync = () => setAuthed(hasSession());
     sync();
     window.addEventListener("auth-changed", sync);
     window.addEventListener("storage", sync);

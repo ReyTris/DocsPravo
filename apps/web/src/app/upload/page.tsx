@@ -3,16 +3,13 @@
 import { useState, useEffect, useCallback, useRef, type DragEvent, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { isAuthenticated } from "@/lib/auth-client";
+import { hasSession } from "@/lib/auth-client";
 
 const ACCEPTED_TYPES = [
   "application/pdf",
   "image/jpeg",
   "image/png",
   "image/heic",
-  "text/plain",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ] as const;
 type AcceptedType = (typeof ACCEPTED_TYPES)[number];
 
@@ -27,10 +24,6 @@ function detectMime(file: File): AcceptedType | null {
   if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
   if (lower.endsWith(".png")) return "image/png";
   if (lower.endsWith(".heic")) return "image/heic";
-  if (lower.endsWith(".txt")) return "text/plain";
-  if (lower.endsWith(".doc")) return "application/msword";
-  if (lower.endsWith(".docx"))
-    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
   return null;
 }
 
@@ -57,7 +50,12 @@ export default function UploadPage() {
   const createFromText = trpc.documents.createFromText.useMutation();
 
   useEffect(() => {
-    if (!isAuthenticated()) router.replace("/login");
+    if (!hasSession()) router.replace("/login");
+    const onAuthChanged = () => {
+      if (!hasSession()) router.replace("/login");
+    };
+    window.addEventListener("auth-changed", onAuthChanged);
+    return () => window.removeEventListener("auth-changed", onAuthChanged);
   }, [router]);
 
   const onDrop = useCallback(
@@ -80,7 +78,7 @@ export default function UploadPage() {
     for (const f of incoming) {
       const mime = detectMime(f);
       if (!mime) {
-        setError(`Файл "${f.name}": формат не поддерживается. PDF, JPEG, PNG, HEIC, TXT, DOC, DOCX.`);
+        setError(`Файл "${f.name}": формат не поддерживается. PDF, JPEG, PNG, HEIC.`);
         continue;
       }
       // Если браузер не выставил MIME (часто для .heic/.docx) — пересоздаём File
@@ -204,7 +202,7 @@ export default function UploadPage() {
     <main className="mx-auto max-w-4xl px-6 py-12">
       <h1 className="text-2xl font-bold">Загрузить письмо</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        PDF, фото или Word-документ. Можно несколько страниц/листов одного документа — они будут
+        PDF или фото письма. Можно несколько страниц/листов одного документа — они будут
         объединены в один разбор. Либо вставьте текст вручную.
       </p>
 
@@ -262,9 +260,6 @@ export default function UploadPage() {
                 ".jpeg",
                 ".png",
                 ".heic",
-                ".txt",
-                ".doc",
-                ".docx",
                 ...ACCEPTED_TYPES,
               ].join(",")}
               onChange={onFileInput}
@@ -272,7 +267,7 @@ export default function UploadPage() {
             />
           </label>
           <p className="mt-3 text-xs text-[var(--muted)]">
-            PDF, JPEG, PNG, HEIC, TXT, DOC, DOCX · до 20 МБ каждый · максимум {MAX_FILES} файлов
+            PDF, JPEG, PNG, HEIC · до 20 МБ каждый · максимум {MAX_FILES} файлов
           </p>
         </div>
       )}

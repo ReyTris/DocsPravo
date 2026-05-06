@@ -4,13 +4,18 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { isAuthenticated } from "@/lib/auth-client";
+import { hasSession } from "@/lib/auth-client";
 
 export default function DocumentsListPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated()) router.replace("/login");
+    if (!hasSession()) router.replace("/login");
+    const onAuthChanged = () => {
+      if (!hasSession()) router.replace("/login");
+    };
+    window.addEventListener("auth-changed", onAuthChanged);
+    return () => window.removeEventListener("auth-changed", onAuthChanged);
   }, [router]);
 
   const list = trpc.documents.list.useQuery({ limit: 50 });

@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { isAuthenticated } from "@/lib/auth-client";
+import { hasSession } from "@/lib/auth-client";
 import type { AnalysisOutput, NavigatorOutput } from "@pravoletter/schemas";
 
 const PROCESSING = new Set([
@@ -30,7 +30,12 @@ export default function DocumentPage() {
   const justPaid = search.get("paid") === "1";
 
   useEffect(() => {
-    if (!isAuthenticated()) router.replace("/login");
+    if (!hasSession()) router.replace("/login");
+    const onAuthChanged = () => {
+      if (!hasSession()) router.replace("/login");
+    };
+    window.addEventListener("auth-changed", onAuthChanged);
+    return () => window.removeEventListener("auth-changed", onAuthChanged);
   }, [router]);
 
   const doc = trpc.documents.getById.useQuery(
