@@ -55,13 +55,13 @@ export interface VisionPipelineOptions {
  * Бюджет токенов под число страниц. Базовая часть — на сам JSON-ответ
  * (mood, шаги, факты ≈ 6-8k токенов независимо от числа страниц), плюс
  * добавка на reasoning (~2000 токенов на страницу — с большим запасом).
- * Потолок 64000 защищает от случайного перерасхода.
+ * Потолок не задан: для длинных документов пропорционально растёт. При
+ * необходимости жёстко ограничить — задать VISION_MAX_TOKENS в env.
  */
 export function computeVisionMaxTokens(pageCount: number): number {
   const base = 8000;
   const perPage = 2000;
-  const cap = 64000;
-  return Math.min(cap, base + Math.max(1, pageCount) * perPage);
+  return base + Math.max(1, pageCount) * perPage;
 }
 
 const VisionCombinedSchema = z.object({
