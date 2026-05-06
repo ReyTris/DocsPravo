@@ -275,6 +275,22 @@ const FEW_SHOT_OUTPUT: AnalysisOutput = {
   ],
 };
 
+// Бюджет под OCR-текст в analyze. Окно YandexGPT — 32768 токенов; SYSTEM +
+// few-shot + navigator/extract JSON + ответ модели съедают ~17–18k токенов.
+// Остаётся ~15k токенов на ocrText. При ~3 символах на токен (русский) это
+// ~45000 символов — берём с запасом 35000, чтобы не упираться у границы.
+// Стратегия: голова + хвост (в длинных документах резюме/итог часто в конце).
+const OCR_BUDGET_CHARS = 35000;
+const OCR_HEAD_CHARS = 22000;
+const OCR_TAIL_CHARS = 12000;
+
+function truncateOcrForAnalyze(ocrText: string): string {
+  if (ocrText.length <= OCR_BUDGET_CHARS) return ocrText;
+  const head = ocrText.slice(0, OCR_HEAD_CHARS);
+  const tail = ocrText.slice(-OCR_TAIL_CHARS);
+  return `${head}\n\n[...пропущено ${ocrText.length - OCR_HEAD_CHARS - OCR_TAIL_CHARS} символов середины документа...]\n\n${tail}`;
+}
+
 function userMessage(input: AnalyzeInput): string {
   return `=== ИЗВЛЕЧЁННЫЕ ПОЛЯ (extract) ===
 ${JSON.stringify(input.extract, null, 2)}
@@ -292,12 +308,19 @@ export async function analyze(
   ext: ExtractOutput,
   ocrText: string,
 ): Promise<AnalysisOutput> {
+  const ocrTextBounded = truncateOcrForAnalyze(ocrText);
+  if (ocrTextBounded.length !== ocrText.length) {
+    console.log(
+      `[analyze] ocrText truncated ${ocrText.length} -> ${ocrTextBounded.length} chars ` +
+        `(head=${OCR_HEAD_CHARS} + tail=${OCR_TAIL_CHARS}). Ключевые факты уже в navigator/extract.`,
+    );
+  }
   const result = await provider.complete({
     system: SYSTEM,
     messages: [
       { role: "user", content: userMessage(FEW_SHOT_INPUT) },
       { role: "assistant", content: JSON.stringify(FEW_SHOT_OUTPUT) },
-      { role: "user", content: userMessage({ navigator, extract: ext, ocrText }) },
+      { role: "user", content: userMessage({ navigator, extract: ext, ocrText: ocrTextBounded }) },
     ],
     schema: AnalysisOutputSchema,
     schemaName: "AnalysisOutput",

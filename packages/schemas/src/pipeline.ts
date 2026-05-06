@@ -106,14 +106,14 @@ export const LegalReferenceSchema = z.object({
 export const ExtractOutputSchema = z.object({
   sender: nullableString,
   recipient_masked: nullableString,
-  document_number: z.string().nullable(),
+  document_number: z.string().nullish().transform((v) => v ?? null),
   document_date_iso: nullableIsoDate,
   subject_one_line: z.string().max(200).nullable().catch(null),
   amounts: z.array(MoneySchema).default([]),
   deadlines: z.array(DeadlineSchema).default([]),
   legal_references: z.array(LegalReferenceSchema).default([]),
   payment_details_present: z.boolean().nullable().catch(null),
-  uin: z.string().nullable(),
+  uin: z.string().nullish().transform((v) => v ?? null),
   not_determined_fields: z.array(z.string()).default([]),
 });
 export type ExtractOutput = z.infer<typeof ExtractOutputSchema>;
@@ -133,7 +133,8 @@ export const AnalysisOutputSchema = z.object({
       tone: MoodEnum,
       headline: nullableString,
     })
-    .nullable(),
+    .nullish()
+    .transform((v) => v ?? null),
   title: nullableString,
   essence: nullableString,
   what_sender_wants: nullableString,
@@ -160,7 +161,8 @@ export const AnalysisOutputSchema = z.object({
       what_to_do: nullableString,
       consequence_of_missing: nullableString,
     })
-    .nullable(),
+    .nullish()
+    .transform((v) => v ?? null),
   important_aspects: z.array(z.string()).default([]),
   pitfalls: z
     .array(
@@ -177,7 +179,8 @@ export const AnalysisOutputSchema = z.object({
       level: ComplexityEnum,
       explanation: nullableString,
     })
-    .nullable(),
+    .nullish()
+    .transform((v) => v ?? null),
   need_lawyer: z
     .object({
       required: z.boolean(),
