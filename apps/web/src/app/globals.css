@@ -84,6 +84,36 @@ textarea::placeholder {
   color: var(--muted);
 }
 
+/* Брендовая CTA-кнопка: плавная смена цвета на hover, без дрожания */
+.btn-brand {
+  background-image: linear-gradient(to bottom right, var(--brand), var(--brand-2));
+  color: #fff;
+  transition: filter 200ms ease, box-shadow 200ms ease, background-position 400ms ease;
+  background-size: 150% 150%;
+  background-position: 0% 0%;
+  will-change: filter, background-position;
+}
+.btn-brand:hover {
+  filter: brightness(1.08) saturate(1.05);
+  background-position: 100% 100%;
+  box-shadow: 0 10px 22px -10px rgba(44, 93, 79, 0.45);
+}
+.btn-brand:active {
+  filter: brightness(0.96);
+  box-shadow: 0 4px 12px -8px rgba(44, 93, 79, 0.4);
+}
+.btn-brand:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+[data-theme="dark"] .btn-brand:hover {
+  filter: brightness(1.12) saturate(1.08);
+  box-shadow: 0 10px 26px -10px rgba(108, 140, 255, 0.55);
+}
+[data-theme="dark"] .btn-brand:active {
+  filter: brightness(0.92);
+}
+
 /* Градиент акцентного слова в hero — адаптивен под тему */
 .hero-accent {
   background: linear-gradient(to right, var(--accent-from), var(--accent-via), var(--accent-to));

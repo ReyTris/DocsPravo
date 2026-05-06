@@ -161,7 +161,7 @@ export function Header() {
           <ThemeToggle />
           <Link
             href="/upload"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] px-4 py-2 text-[14px] font-semibold text-white transition-transform hover:-translate-y-px"
+            className="btn-brand inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[14px] font-semibold"
           >
             Разобрать документ
           </Link>

@@ -223,7 +223,7 @@ function HeroSection() {
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/upload"
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] px-5 py-3 text-[15px] font-semibold text-white transition-transform hover:-translate-y-px"
+                className="btn-brand inline-flex items-center gap-2 rounded-xl px-5 py-3 text-[15px] font-semibold"
               >
                 Разобрать бесплатно →
               </Link>
@@ -470,10 +470,10 @@ function PricingSection() {
               <Link
                 href="/register"
                 className={
-                  "mt-6 inline-flex items-center justify-center rounded-xl px-5 py-3 text-[14px] font-semibold transition-transform hover:-translate-y-px " +
+                  "mt-6 inline-flex items-center justify-center rounded-xl px-5 py-3 text-[14px] font-semibold " +
                   (p.highlight
-                    ? "bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] text-white"
-                    : "border border-[var(--card-border)] text-[var(--text)] hover:bg-[var(--surface-hover)]")
+                    ? "btn-brand"
+                    : "border border-[var(--card-border)] text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)]")
                 }
               >
                 Начать бесплатно →
@@ -563,7 +563,7 @@ function CtaSection() {
           </p>
           <Link
             href="/upload"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] px-7 py-3.5 text-[16px] font-semibold text-white transition-transform hover:-translate-y-px"
+            className="btn-brand inline-flex items-center gap-2 rounded-xl px-7 py-3.5 text-[16px] font-semibold"
           >
             Разобрать документ бесплатно →
           </Link>

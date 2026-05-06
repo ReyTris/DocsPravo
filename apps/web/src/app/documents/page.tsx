@@ -26,7 +26,7 @@ export default function DocumentsListPage() {
         <h1 className="text-2xl font-bold text-[var(--text)]">Мои документы</h1>
         <Link
           href="/upload"
-          className="rounded-xl bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-px"
+          className="btn-brand rounded-xl px-4 py-2 text-sm font-semibold"
         >
           Загрузить новый
         </Link>
@@ -44,7 +44,7 @@ export default function DocumentsListPage() {
           <p className="text-[var(--muted)]">Пока ничего не загружено.</p>
           <Link
             href="/upload"
-            className="mt-4 inline-block rounded-xl bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] px-4 py-2 text-sm font-semibold text-white"
+            className="btn-brand mt-4 inline-block rounded-xl px-4 py-2 text-sm font-semibold"
           >
             Загрузить первое письмо
           </Link>
