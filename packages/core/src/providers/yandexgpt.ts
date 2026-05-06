@@ -82,6 +82,16 @@ export class YandexGPTProvider implements LLMProvider {
         const raw = json.choices[0]?.message.content ?? "";
         if (!raw) throw new Error("Empty response from YandexGPT");
 
+        const maxTokensUsed = opts.maxTokens ?? 8000;
+        const outTokens = json.usage?.completion_tokens;
+        if (outTokens !== undefined && outTokens >= maxTokensUsed * 0.95) {
+          console.warn(
+            `[yandexgpt] ${opts.schemaName ?? "response"}: completion_tokens=${outTokens} ` +
+              `близко к max_tokens=${maxTokensUsed} — возможна обрезка JSON. ` +
+              `Рассмотри увеличение maxTokens.`,
+          );
+        }
+
         const parsed = JSON.parse(this.extractJson(raw));
         const validated = opts.schema.parse(parsed);
 
