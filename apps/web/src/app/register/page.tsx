@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [agree, setAgree] = useState(false);
   const [clientError, setClientError] = useState<string | null>(null);
   const register = trpc.auth.register.useMutation({
@@ -28,6 +29,10 @@ export default function RegisterPage() {
     }
     if (password.length < 8) {
       setClientError("Пароль должен быть не короче 8 символов.");
+      return;
+    }
+    if (password !== passwordConfirm) {
+      setClientError("Пароли не совпадают.");
       return;
     }
     if (register.isPending) return;
@@ -70,6 +75,23 @@ export default function RegisterPage() {
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={register.isPending}
+            className="mt-1 w-full rounded-md border px-3 py-2"
+          />
+        </div>
+        <div>
+          <label htmlFor="passwordConfirm" className="block text-sm font-medium">
+            Повторите пароль
+          </label>
+          <input
+            id="passwordConfirm"
+            name="passwordConfirm"
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            value={passwordConfirm}
+            onChange={(e) => setPasswordConfirm(e.target.value)}
             disabled={register.isPending}
             className="mt-1 w-full rounded-md border px-3 py-2"
           />
