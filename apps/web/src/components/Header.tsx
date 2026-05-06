@@ -32,7 +32,7 @@ export function Header() {
           <Link href="/#features" className="hover:text-[var(--text)] transition-colors">Возможности</Link>
           <Link href="/#how" className="hover:text-[var(--text)] transition-colors">Как работает</Link>
           <Link href="/#cases" className="hover:text-[var(--text)] transition-colors">Документы</Link>
-          <Link href="/#safety" className="hover:text-[var(--text)] transition-colors">Безопасность</Link>
+          <Link href="/#pricing" className="hover:text-[var(--text)] transition-colors">Тарифы</Link>
           <Link href="/#faq" className="hover:text-[var(--text)] transition-colors">FAQ</Link>
         </nav>
 
