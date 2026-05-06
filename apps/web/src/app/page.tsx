@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from "@/lib/seo";
 
 export default function HomePage() {
   return (
     <main>
+      <HomeJsonLd />
       <HeroSection />
       <ProblemSection />
       <FeaturesSection />
@@ -13,6 +15,190 @@ export default function HomePage() {
       <FaqSection />
       <CtaSection />
     </main>
+  );
+}
+
+/**
+ * JSON-LD главной страницы. Дублирует видимый пользователем контент
+ * (FAQ, шаги «как работает», тарифы, перечень документов) в формате,
+ * который Яндекс и Google показывают rich-результатами в выдаче.
+ *
+ * ВАЖНО: текст в графе должен совпадать с тем, что реально на странице,
+ * иначе поисковики могут заблокировать rich-сниппеты за «cloaking».
+ * Любое изменение FAQ/HowTo секций ниже требует синхронного апдейта здесь.
+ */
+function HomeJsonLd() {
+  const faq = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        q: "Мои персональные данные в безопасности?",
+        a: "До отправки в языковую модель ФИО, ИНН, паспорт, СНИЛС и УИН заменяются на анонимные токены вида [ФИО_1], [ИНН_1]. Модель не видит ваших настоящих данных и не запоминает их.",
+      },
+      {
+        q: "Можно ли доверять разбору на 100%?",
+        a: "Нет. ИИ — это помощник, а не юрист. Мы специально показываем, что нужно сверить в оригинале (УИН, реквизиты, суммы, даты), и отдельно отмечаем случаи, когда нужен живой специалист.",
+      },
+      {
+        q: "А если документ — подделка или фишинг?",
+        a: "Сервис распознаёт типовые признаки: реквизиты на физлицо, странные ссылки, давление срочностью, несоответствие отправителя. Такие документы помечаются красным флагом «danger».",
+      },
+      {
+        q: "Что с фотографиями плохого качества?",
+        a: "Если OCR не смог разобрать часть текста, мы честно об этом скажем и не будем выдумывать недостающие цифры. Лучше переснять при дневном свете.",
+      },
+      {
+        q: "Сервис подаст за меня жалобу или оплатит штраф?",
+        a: "Нет. Мы только объясняем документ и пошагово показываем, что и где сделать самому. Оплата и подача документов — всегда через официальные каналы (Госуслуги, nalog.gov.ru, личный кабинет суда).",
+      },
+      {
+        q: "Какие документы умеет разбирать PravoLetter?",
+        a: "Требования и уведомления ФНС, постановления ФССП, судебные приказы и повестки, штрафы и протоколы ГИБДД, повестки военкомата, претензии банков и коллекторов, уведомления УК и ЖКХ, договоры, справки и любые официальные письма с печатью.",
+      },
+      {
+        q: "Сколько стоит разбор?",
+        a: "При регистрации одна страница бесплатно. Дальше — пакеты: 3 страницы за 100 ₽, 10 страниц за 200 ₽, 30 страниц за 400 ₽. Без подписки, страницы не сгорают.",
+      },
+    ].map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: { "@type": "Answer", text: item.a },
+    })),
+  };
+
+  const howTo = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: "Как разобрать официальное письмо за 30 секунд",
+    description:
+      "Пошаговая инструкция: загрузить документ в PravoLetter и получить понятный разбор с действиями и сроками.",
+    totalTime: "PT30S",
+    estimatedCost: { "@type": "MonetaryAmount", currency: "RUB", value: "0" },
+    step: [
+      {
+        "@type": "HowToStep",
+        position: 1,
+        name: "Загрузите",
+        text: "Загрузите фото с телефона или PDF из почты. Можно сразу пачкой страниц.",
+      },
+      {
+        "@type": "HowToStep",
+        position: 2,
+        name: "Маскировка",
+        text: "ФИО, ИНН и паспортные данные заменяются на токены — данные не утекают в модель.",
+      },
+      {
+        "@type": "HowToStep",
+        position: 3,
+        name: "Разбор",
+        text: "Определяем отправителя, тип документа, суммы, сроки и юридические основания.",
+      },
+      {
+        "@type": "HowToStep",
+        position: 4,
+        name: "Понятный ответ",
+        text: "Получаете суть, шаги, сроки и предупреждения на обычном русском языке.",
+      },
+    ],
+  };
+
+  const webApp = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "@id": `${SITE_URL}#webapp`,
+    name: SITE_NAME,
+    url: SITE_URL,
+    description: SITE_DESCRIPTION,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    inLanguage: "ru-RU",
+    isAccessibleForFree: true,
+    featureList: [
+      "Распознавание PDF и фотографий (OCR)",
+      "Маскирование персональных данных перед отправкой в LLM",
+      "Классификация документа: ФНС, ФССП, суд, ГИБДД, военкомат, банк, ЖКХ",
+      "Извлечение сумм, сроков, реквизитов и УИН",
+      "Пошаговый план действий и сроки",
+      "Защита от фишинга и поддельных писем",
+    ],
+    offers: [
+      {
+        "@type": "Offer",
+        name: "Старт",
+        description: "1 страница бесплатно при регистрации",
+        price: "0",
+        priceCurrency: "RUB",
+      },
+      {
+        "@type": "Offer",
+        name: "Попробовать",
+        description: "3 страницы",
+        price: "100",
+        priceCurrency: "RUB",
+      },
+      {
+        "@type": "Offer",
+        name: "Выгоднее всего",
+        description: "10 страниц",
+        price: "200",
+        priceCurrency: "RUB",
+      },
+      {
+        "@type": "Offer",
+        name: "Для пачки писем",
+        description: "30 страниц",
+        price: "400",
+        priceCurrency: "RUB",
+      },
+    ],
+    publisher: { "@id": `${SITE_URL}#organization` },
+  };
+
+  const service = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    serviceType: "Разбор официальных документов с помощью ИИ",
+    provider: { "@id": `${SITE_URL}#organization` },
+    areaServed: { "@type": "Country", name: "Россия" },
+    audience: { "@type": "PeopleAudience", audienceType: "Физические лица и ИП" },
+    description: SITE_DESCRIPTION,
+    category: [
+      "Разбор требований ФНС",
+      "Разбор постановлений ФССП",
+      "Разбор судебных приказов и повесток",
+      "Разбор штрафов ГИБДД",
+      "Разбор повесток военкомата",
+      "Разбор писем банков и коллекторов",
+      "Разбор претензий ЖКХ и УК",
+      "Разбор договоров и претензий",
+    ],
+  };
+
+  const breadcrumbs = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Главная",
+        item: SITE_URL,
+      },
+    ],
+  };
+
+  const all = [faq, howTo, webApp, service, breadcrumbs];
+  return (
+    <>
+      {all.map((graph, i) => (
+        <script
+          key={i}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(graph) }}
+        />
+      ))}
+    </>
   );
 }
 
@@ -248,6 +434,10 @@ function PricingSection() {
     <section id="pricing" className="py-20">
       <div className="mx-auto max-w-[1120px] px-6">
         <Eyebrow>Тарифы</Eyebrow>
+        <p className="mt-2 max-w-[680px] text-[15px] text-[var(--muted)]">
+          При регистрации мы дарим <span className="font-semibold text-[var(--text)]">1 страницу бесплатно</span> —
+          этого хватит, чтобы разобрать одно письмо и понять, насколько сервис вам подходит. Без карты и подписки.
+        </p>
         <div className="mt-6 grid gap-5 sm:grid-cols-3">
           {plans.map((p) => (
             <div
@@ -292,7 +482,7 @@ function PricingSection() {
           ))}
         </div>
         <p className="mt-6 text-[13px] text-[var(--muted)]">
-          Не сгорают · Без подписки · Возврат страниц при ошибке разбора
+          Не сгорают · Без подписки
         </p>
       </div>
     </section>
