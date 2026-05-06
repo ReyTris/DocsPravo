@@ -34,10 +34,32 @@ const MIN_TEXT_LEN = 20;
 
 type Mode = "files" | "text";
 
+// Стабильный ключ файла для дедупа и хранения связанных метаданных
+// (счётчик страниц). lastModified добавляем, потому что один и тот же
+// name+size встречается у разных файлов.
+function fileKey(f: File): string {
+  return `${f.name}|${f.size}|${f.lastModified}`;
+}
+
+// "загрузка" → null, число → результат, "error" → не удалось распарсить.
+type PageCount = number | null | "error";
+
+async function countPdfPages(file: File): Promise<number> {
+  const { PDFDocument } = await import("pdf-lib");
+  const buf = await file.arrayBuffer();
+  const pdf = await PDFDocument.load(buf, {
+    ignoreEncryption: true,
+    updateMetadata: false,
+    throwOnInvalidObject: false,
+  });
+  return pdf.getPageCount();
+}
+
 export default function UploadPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("files");
   const [files, setFiles] = useState<File[]>([]);
+  const [pageCounts, setPageCounts] = useState<Record<string, PageCount>>({});
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +70,13 @@ export default function UploadPage() {
   const requestUrls = trpc.documents.requestUploadUrls.useMutation();
   const confirmUpload = trpc.documents.confirmUpload.useMutation();
   const createFromText = trpc.documents.createFromText.useMutation();
+  const balanceQuery = trpc.pages.balance.useQuery(undefined, {
+    // Перезапрашиваем при возврате на вкладку — баланс мог измениться (покупка, возврат).
+    refetchOnWindowFocus: true,
+    staleTime: 10_000,
+  });
+  const balance = balanceQuery.data?.balance ?? 0;
+  const balanceLoading = balanceQuery.isLoading;
 
   useEffect(() => {
     if (!hasSession()) router.replace("/login");
@@ -75,13 +104,15 @@ export default function UploadPage() {
   function acceptFiles(incoming: File[]) {
     setError(null);
     const next = [...files];
+    const pdfsToCount: File[] = [];
+    const imageDefaults: Record<string, PageCount> = {};
     for (const f of incoming) {
       const mime = detectMime(f);
       if (!mime) {
         setError(`Файл "${f.name}": формат не поддерживается. PDF, JPEG, PNG, HEIC.`);
         continue;
       }
-      // Если браузер не выставил MIME (часто для .heic/.docx) — пересоздаём File
+      // Если браузер не выставил MIME (часто для .heic) — пересоздаём File
       // с правильным типом, чтобы и валидация, и Content-Type в presigned-PUT совпали.
       const normalized = f.type === mime ? f : new File([f], f.name, { type: mime });
       if (normalized.size > MAX_BYTES) {
@@ -92,15 +123,44 @@ export default function UploadPage() {
         setError(`Можно загрузить максимум ${MAX_FILES} файлов за раз.`);
         break;
       }
-      // дедупликация по имени + размеру
-      if (next.some((x) => x.name === normalized.name && x.size === normalized.size)) continue;
+      // дедупликация по name+size+lastModified
+      const key = fileKey(normalized);
+      if (next.some((x) => fileKey(x) === key)) continue;
       next.push(normalized);
+      if (mime === "application/pdf") {
+        pdfsToCount.push(normalized);
+      } else {
+        // Изображение = одна страница.
+        imageDefaults[key] = 1;
+      }
     }
     setFiles(next);
+    if (Object.keys(imageDefaults).length > 0) {
+      setPageCounts((prev) => ({ ...prev, ...imageDefaults }));
+    }
+    // Подсчёт страниц PDF — асинхронно, не блокирует UI.
+    for (const pdf of pdfsToCount) {
+      const key = fileKey(pdf);
+      setPageCounts((prev) => ({ ...prev, [key]: null }));
+      countPdfPages(pdf)
+        .then((pages) => {
+          setPageCounts((prev) => ({ ...prev, [key]: pages }));
+        })
+        .catch(() => {
+          setPageCounts((prev) => ({ ...prev, [key]: "error" }));
+        });
+    }
   }
 
   function removeFile(idx: number) {
+    const removed = files[idx];
     setFiles(files.filter((_, i) => i !== idx));
+    if (removed) {
+      const key = fileKey(removed);
+      setPageCounts((prev) =>
+        Object.fromEntries(Object.entries(prev).filter(([k]) => k !== key)),
+      );
+    }
   }
 
   function moveFile(idx: number, dir: -1 | 1) {
@@ -149,9 +209,14 @@ export default function UploadPage() {
       );
 
       setProgress("Запускаем разбор...");
-      await confirmUpload.mutateAsync({ documentId: res.documentId });
+      await confirmUpload.mutateAsync({
+        documentId: res.documentId,
+        pageCount: totalPages,
+      });
       if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
 
+      // Баланс изменился — обновим, чтобы остальной UI был актуален.
+      balanceQuery.refetch();
       router.push(`/documents/${res.documentId}`);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -161,6 +226,9 @@ export default function UploadPage() {
       }
       setUploading(false);
       setProgress("");
+      // Если упало после списания (например, на enqueue) — сервер сделал refund,
+      // но клиентский баланс уже устарел. Перечитываем.
+      balanceQuery.refetch();
     } finally {
       abortRef.current = null;
     }
@@ -188,15 +256,47 @@ export default function UploadPage() {
         text: trimmed,
         title: title.trim() || undefined,
       });
+      balanceQuery.refetch();
       router.push(`/documents/${res.documentId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось отправить текст.");
       setUploading(false);
       setProgress("");
+      balanceQuery.refetch();
     }
   }
 
   const totalBytes = files.reduce((s, f) => s + f.size, 0);
+
+  // Сумма страниц для известных файлов; isCounting — есть хотя бы один PDF в процессе.
+  const totalPages = files.reduce((sum, f) => {
+    const v = pageCounts[fileKey(f)];
+    return typeof v === "number" ? sum + v : sum;
+  }, 0);
+  const isCounting = files.some((f) => pageCounts[fileKey(f)] === null);
+  const hasCountError = files.some((f) => pageCounts[fileKey(f)] === "error");
+
+  // Сколько страниц спишется при отправке. Для файлов = сумма постранично;
+  // для текста = всегда 1.
+  const requiredPages = mode === "files" ? totalPages : 1;
+  const enoughBalance = balance >= requiredPages;
+  // Кнопка отправки доступна, только когда файлы посчитались, баланса хватает,
+  // и нет ошибки парсинга страниц (мы всё равно не знаем точное число).
+  const canSubmitFiles =
+    !uploading &&
+    files.length > 0 &&
+    !isCounting &&
+    !hasCountError &&
+    requiredPages > 0 &&
+    enoughBalance;
+
+  function renderPageCount(f: File): string {
+    const v = pageCounts[fileKey(f)];
+    if (v === null) return "считаем страницы...";
+    if (v === "error") return "не удалось определить страницы";
+    if (typeof v === "number") return `${v} ${plural(v, ["страница", "страницы", "страниц"])}`;
+    return "";
+  }
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
@@ -205,6 +305,22 @@ export default function UploadPage() {
         PDF или фото письма. Можно несколько страниц/листов одного документа — они будут
         объединены в один разбор. Либо вставьте текст вручную.
       </p>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-white/10 bg-white/5 p-3 text-sm">
+        <span className="text-[var(--muted)]">Баланс:</span>
+        <span className="font-semibold">
+          {balanceLoading
+            ? "…"
+            : `${balance} ${plural(balance, ["страница", "страницы", "страниц"])}`}
+        </span>
+        <button
+          type="button"
+          onClick={() => router.push("/billing")}
+          className="ml-auto rounded-md border border-white/20 px-3 py-1 text-xs hover:bg-white/10"
+        >
+          Купить страницы
+        </button>
+      </div>
 
       <div role="tablist" className="mt-6 inline-flex rounded-md border border-white/10 p-1 text-sm">
         <button
@@ -307,9 +423,36 @@ export default function UploadPage() {
               {text.length.toLocaleString("ru-RU")} / {MAX_TEXT_LEN.toLocaleString("ru-RU")}
             </div>
           </div>
+          <div
+            className={
+              "rounded-md border p-3 text-sm " +
+              (enoughBalance
+                ? "border-green-500/30 bg-green-500/10"
+                : "border-red-500/40 bg-red-500/10")
+            }
+          >
+            Спишется: <b>1</b> страница
+            {" · "}
+            {enoughBalance ? (
+              <>
+                Останется: <b>{balance - 1}</b>
+              </>
+            ) : (
+              <>
+                Не хватает: <b>1</b> страницы.{" "}
+                <button
+                  type="button"
+                  onClick={() => router.push("/billing")}
+                  className="underline hover:no-underline"
+                >
+                  Купить
+                </button>
+              </>
+            )}
+          </div>
           <button
             onClick={submitText}
-            disabled={uploading || text.trim().length < MIN_TEXT_LEN}
+            disabled={uploading || text.trim().length < MIN_TEXT_LEN || !enoughBalance}
             className="rounded-md bg-black px-6 py-3 text-white disabled:bg-gray-400"
           >
             {uploading ? progress || "Отправляем..." : "Разобрать текст"}
@@ -327,7 +470,7 @@ export default function UploadPage() {
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{f.name}</div>
                 <div className="text-xs text-[var(--muted)]">
-                  {(f.size / 1024).toFixed(0)} КБ · {f.type}
+                  {(f.size / 1024).toFixed(0)} КБ · {f.type} · {renderPageCount(f)}
                 </div>
               </div>
               <div className="ml-3 flex shrink-0 items-center gap-1">
@@ -368,27 +511,67 @@ export default function UploadPage() {
       )}
 
       {mode === "files" && files.length > 0 && (
-        <div className="mt-6 flex items-center gap-4">
-          <button
-            onClick={startUpload}
-            disabled={uploading}
-            className="rounded-md bg-black px-6 py-3 text-white disabled:bg-gray-400"
+        <div className="mt-6 space-y-3">
+          <div
+            className={
+              "rounded-md border p-3 text-sm " +
+              (isCounting
+                ? "border-white/10 bg-white/5 text-[var(--muted)]"
+                : enoughBalance
+                  ? "border-green-500/30 bg-green-500/10"
+                  : "border-red-500/40 bg-red-500/10")
+            }
           >
-            {uploading
-              ? progress || "Загружаем..."
-              : `Загрузить и разобрать (${files.length} ${plural(files.length, ["файл", "файла", "файлов"])})`}
-          </button>
-          {uploading && (
+            {isCounting ? (
+              <>Считаем страницы…</>
+            ) : (
+              <>
+                Спишется: <b>{totalPages}</b>{" "}
+                {plural(totalPages, ["страница", "страницы", "страниц"])}
+                {" · "}
+                {enoughBalance ? (
+                  <>
+                    Останется: <b>{balance - totalPages}</b>
+                  </>
+                ) : (
+                  <>
+                    Не хватает: <b>{totalPages - balance}</b>{" "}
+                    {plural(totalPages - balance, ["страницы", "страниц", "страниц"])}.{" "}
+                    <button
+                      type="button"
+                      onClick={() => router.push("/billing")}
+                      className="underline hover:no-underline"
+                    >
+                      Купить
+                    </button>
+                  </>
+                )}
+                {hasCountError ? " (часть страниц не определена)" : ""}
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
             <button
-              onClick={cancelUpload}
-              className="rounded-md border border-white/20 px-4 py-3 text-sm text-[var(--muted)] hover:bg-white/10"
+              onClick={startUpload}
+              disabled={!canSubmitFiles}
+              className="rounded-md bg-black px-6 py-3 text-white disabled:bg-gray-400"
             >
-              Отменить
+              {uploading
+                ? progress || "Загружаем..."
+                : `Загрузить и разобрать (${files.length} ${plural(files.length, ["файл", "файла", "файлов"])})`}
             </button>
-          )}
-          <span className="text-xs text-[var(--muted)]">
-            Всего: {(totalBytes / 1024 / 1024).toFixed(1)} МБ
-          </span>
+            {uploading && (
+              <button
+                onClick={cancelUpload}
+                className="rounded-md border border-white/20 px-4 py-3 text-sm text-[var(--muted)] hover:bg-white/10"
+              >
+                Отменить
+              </button>
+            )}
+            <span className="text-xs text-[var(--muted)]">
+              Всего: {(totalBytes / 1024 / 1024).toFixed(1)} МБ
+            </span>
+          </div>
         </div>
       )}
 

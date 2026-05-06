@@ -16,6 +16,7 @@ import {
 import { router, protectedProcedure } from "../trpc";
 import { presignUploadUrl } from "../../lib/storage";
 import { enqueuePipelineJob } from "../services/jobs";
+import { chargeDocument, refundDocument } from "../services/pages";
 
 export const documentsRouter = router({
   /**
@@ -147,9 +148,26 @@ export const documentsRouter = router({
           sizeBytes: Buffer.byteLength(text, "utf8"),
           storageKey,
           ocrText: text,
+          pagesCharged: 1,
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
       });
+      // Списываем 1 страницу за текстовый разбор. Идемпотентно по documentId.
+      try {
+        await chargeDocument(ctx.db, {
+          userId: ctx.user.id,
+          documentId,
+          pages: 1,
+        });
+      } catch (err) {
+        // Не хватило баланса — удаляем документ-черновик и пробрасываем ошибку.
+        await ctx.db.document.delete({ where: { id: documentId } }).catch(() => {});
+        if (err instanceof TRPCError) throw err;
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Не удалось списать страницу с баланса",
+        });
+      }
       // Сразу ставим в очередь — отдельный confirmUpload не нужен.
       await ctx.db.document.update({
         where: { id: documentId },
@@ -161,6 +179,7 @@ export const documentsRouter = router({
         await ctx.db.document
           .update({ where: { id: documentId }, data: { status: "error" } })
           .catch(() => {});
+        await refundDocument(ctx.db, { documentId }).catch(() => {});
         throw err;
       }
       return { documentId };
@@ -169,12 +188,12 @@ export const documentsRouter = router({
   confirmUpload: protectedProcedure
     .input(ConfirmUploadInput)
     .mutation(async ({ ctx, input }) => {
-      // Атомарная смена статуса uploaded → ocr_processing.
+      // Атомарная смена статуса uploaded → ocr_processing + фиксация pagesCharged.
       // updateMany с фильтром по userId+status гарантирует, что только владелец
       // и только один раз переведёт документ в обработку (защита от race).
       const updated = await ctx.db.document.updateMany({
         where: { id: input.documentId, userId: ctx.user.id, status: "uploaded" },
-        data: { status: "ocr_processing" },
+        data: { status: "ocr_processing", pagesCharged: input.pageCount },
       });
       if (updated.count === 0) {
         // Либо документ не найден, либо чужой, либо уже в обработке.
@@ -185,14 +204,36 @@ export const documentsRouter = router({
         if (!exists) throw new TRPCError({ code: "NOT_FOUND" });
         return { ok: true as const, alreadyProcessing: true };
       }
+      // Списываем страницы с баланса. chargeDocument идемпотентен по documentId,
+      // так что повторный вызов (после ретрая клиента) не задвоит списание.
+      try {
+        await chargeDocument(ctx.db, {
+          userId: ctx.user.id,
+          documentId: input.documentId,
+          pages: input.pageCount,
+        });
+      } catch (err) {
+        // Не хватило баланса (или другая ошибка) — откатываем статус, документ
+        // остаётся uploaded. Клиент покажет «купите пакет» и повторит позже.
+        await ctx.db.document.updateMany({
+          where: { id: input.documentId, status: "ocr_processing" },
+          data: { status: "uploaded", pagesCharged: null },
+        });
+        if (err instanceof TRPCError) throw err;
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Не удалось списать страницы с баланса",
+        });
+      }
       try {
         await enqueuePipelineJob(input.documentId);
       } catch (err) {
-        // Откатываем статус, чтобы клиент мог повторить.
+        // Откатываем статус и возвращаем списанные страницы.
         await ctx.db.document.updateMany({
           where: { id: input.documentId, status: "ocr_processing" },
-          data: { status: "uploaded" },
+          data: { status: "uploaded", pagesCharged: null },
         });
+        await refundDocument(ctx.db, { documentId: input.documentId }).catch(() => {});
         throw err;
       }
       return { ok: true as const };
@@ -261,7 +302,10 @@ export const documentsRouter = router({
         where: { id: input.id },
         data: { status: "cancelled" },
       });
-      return { ok: true as const };
+      // Возврат страниц при отмене. Идемпотентен — если уже был возврат
+      // (например, worker успел сам вернуть при ошибке), повторно не сделаем.
+      const refund = await refundDocument(ctx.db, { documentId: input.id });
+      return { ok: true as const, refundedPages: refund.pages };
     }),
 
   list: protectedProcedure

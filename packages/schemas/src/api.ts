@@ -103,6 +103,10 @@ export const RequestUploadUrlOutput = z.object({
 
 export const ConfirmUploadInput = z.object({
   documentId: z.string().uuid(),
+  // Число страниц, посчитанное на клиенте (PDF — pdf-lib, изображение — 1).
+  // Сервер делает sanity-check (1..500), списывает с баланса, потом worker
+  // после OCR делает выверку и при необходимости корректирует.
+  pageCount: z.number().int().min(1).max(500),
 });
 
 export const DocumentSummary = z.object({

@@ -2,7 +2,7 @@
  * Главный job: OCR всех файлов документа → промт-цепочка → запись результата.
  */
 
-import { prisma, type Prisma } from "@pravoletter/db";
+import { prisma, refundDocument, type Prisma } from "@pravoletter/db";
 import {
   runPipeline,
   PIPELINE_VERSION,
@@ -37,6 +37,14 @@ export async function handlePipelineJob(documentId: string): Promise<void> {
     await prisma.document
       .update({ where: { id: documentId }, data: { status: "error" } })
       .catch(() => {});
+    // Возврат страниц при любой неуправляемой ошибке pipeline.
+    // Идемпотентен — если refund уже был сделан, повторно не вернёт.
+    await refundDocument(prisma, {
+      documentId,
+      note: "Возврат: исключение в pipeline",
+    }).catch((e) => {
+      console.error(`[pipeline] document=${documentId} refund failed:`, e);
+    });
     throw err;
   }
 }
@@ -280,6 +288,26 @@ async function runPipelineJob(documentId: string, doc: DocWithFiles): Promise<vo
       });
     }
   });
+
+  // Возврат страниц при «штатных плохих» исходах. Транзакция выше уже зафиксировала
+  // финальный статус; refund делаем отдельно — он идемпотентен по documentId.
+  if (status === "unsupported" || status === "error") {
+    const refund = await refundDocument(prisma, {
+      documentId,
+      note:
+        status === "unsupported"
+          ? "Возврат: документ не подходит под профиль сервиса"
+          : `Возврат: ошибка pipeline (${result.error ?? "unknown"})`,
+    }).catch((e) => {
+      console.error(`[pipeline] document=${documentId} refund failed:`, e);
+      return { refunded: false, pages: 0 };
+    });
+    if (refund.refunded) {
+      console.log(
+        `[pipeline] document=${documentId} refunded ${refund.pages} pages (status=${status})`,
+      );
+    }
+  }
 }
 
 /**

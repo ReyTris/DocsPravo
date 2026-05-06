@@ -13,19 +13,23 @@ datasource db {
 // ---------- Users & Auth ----------
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
   passwordHash String?
   phone        String?
-  role         UserRole @default(user)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         UserRole  @default(user)
+  // Баланс страниц для разбора. 1 страница = 1 единица.
+  // Списывается при confirmUpload, возвращается при ошибке pipeline / cancel.
+  balancePages Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  documents     Document[]
-  payments      Payment[]
-  refreshTokens RefreshToken[]
-  consents      Consent[]
+  documents        Document[]
+  payments         Payment[]
+  refreshTokens    RefreshToken[]
+  consents         Consent[]
+  pageTransactions PageTransaction[]
 
   @@index([email])
 }
@@ -36,12 +40,12 @@ enum UserRole {
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   revokedAt DateTime?
   userAgent String?
   ip        String?
@@ -51,12 +55,12 @@ model RefreshToken {
 
 // Согласие на обработку ПД (обязательно по 152-ФЗ)
 model Consent {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String      @id @default(uuid()) @db.Uuid
+  userId    String      @db.Uuid
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   kind      ConsentKind
   version   String
-  givenAt   DateTime @default(now())
+  givenAt   DateTime    @default(now())
   revokedAt DateTime?
   ip        String?
 
@@ -72,37 +76,42 @@ enum ConsentKind {
 // ---------- Documents ----------
 
 model Document {
-  id            String         @id @default(uuid()) @db.Uuid
-  userId        String?        @db.Uuid
-  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  status        DocumentStatus @default(uploaded)
+  id     String         @id @default(uuid()) @db.Uuid
+  userId String?        @db.Uuid
+  user   User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status DocumentStatus @default(uploaded)
 
   // Legacy-поля (для документов, загруженных до multi-file). Для новых документов
   // эти поля заполняются по первому файлу — для обратной совместимости со списком.
-  filename      String
-  contentType   String
-  sizeBytes     Int
-  storageKey    String         @unique
-  fileHash      String?
+  filename    String
+  contentType String
+  sizeBytes   Int
+  storageKey  String  @unique
+  fileHash    String?
 
-  ocrText       String?        @db.Text
+  ocrText        String? @db.Text
   ocrCostKopecks Int?
 
   // Денормализация для быстрого списка
-  tier          DocumentTier?
-  detectedType  String?
-  essence       String?
+  tier             DocumentTier?
+  detectedType     String?
+  essence          String?
   criticalDeadline DateTime?
 
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  // Автоудаление через 30 дней (cron)
-  expiresAt     DateTime
+  // Сколько страниц списали с баланса при confirmUpload. NULL для документов,
+  // созданных до введения тарифа на страницы.
+  pagesCharged Int?
 
-  files         DocumentFile[]
-  analyses      Analysis[]
-  payments      Payment[]
-  deadlines     Deadline[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  // Автоудаление через 30 дней (cron)
+  expiresAt DateTime
+
+  files            DocumentFile[]
+  analyses         Analysis[]
+  payments         Payment[]
+  deadlines        Deadline[]
+  pageTransactions PageTransaction[]
 
   @@index([userId, createdAt])
   @@index([status])
@@ -112,21 +121,21 @@ model Document {
 // Один Document может иметь несколько прикреплённых файлов (страницы скана,
 // несколько листов, фото с разных ракурсов).
 model DocumentFile {
-  id          String   @id @default(uuid()) @db.Uuid
-  documentId  String   @db.Uuid
-  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @db.Uuid
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   filename    String
   contentType String
   sizeBytes   Int
-  storageKey  String   @unique
+  storageKey  String  @unique
   fileHash    String?
-  position    Int      @default(0) // порядок отображения / OCR
+  position    Int     @default(0) // порядок отображения / OCR
 
-  ocrText     String?  @db.Text
+  ocrText        String? @db.Text
   ocrCostKopecks Int?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([documentId, position])
 }
@@ -155,26 +164,26 @@ enum DocumentTier {
 // ---------- Analyses ----------
 
 model Analysis {
-  id              String   @id @default(uuid()) @db.Uuid
-  documentId      String   @db.Uuid
-  document        Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @db.Uuid
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   // Полный JSON-результат пайплайна (PipelineResult из @pravoletter/schemas)
-  result          Json
+  result             Json
   // Для быстрых выборок — продублированы ключевые поля
-  status          String
-  detectedType    String?
+  status             String
+  detectedType       String?
   classifyConfidence Float?
 
   // Версионирование — для разбора инцидентов
   pipelineVersion String
-  promptVersions  Json     // { classify: "v1", extract: "v1", analyze: "v1" }
+  promptVersions  Json // { classify: "v1", extract: "v1", analyze: "v1" }
   modelName       String
 
-  costKopecks     Int?
-  durationMs      Int?
+  costKopecks Int?
+  durationMs  Int?
 
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([documentId, createdAt])
 }
@@ -182,25 +191,32 @@ model Analysis {
 // ---------- Payments ----------
 
 model Payment {
-  id                String        @id @default(uuid()) @db.Uuid
-  userId            String        @db.Uuid
-  user              User          @relation(fields: [userId], references: [id])
-  documentId        String?       @db.Uuid
-  document          Document?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id])
+  documentId String?   @db.Uuid
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
 
-  amountKopecks     Int
-  currency          String        @default("RUB")
-  product           String        // full_analysis, urgent_analysis, subscription_basic, subscription_pro
-  status            PaymentStatus @default(pending)
+  amountKopecks Int
+  currency      String        @default("RUB")
+  // Тип продукта. Сейчас актуально: pages_3, pages_10, pages_30
+  // (legacy: full_analysis, urgent_analysis, subscription_basic, subscription_pro).
+  product       String
+  // Сколько страниц начислить пользователю после успешной оплаты пакета.
+  // NULL для legacy-платежей за документ.
+  pagesGranted  Int?
+  status        PaymentStatus @default(pending)
 
-  ukassaId          String?       @unique
-  ukassaIdempotency String        @unique
+  pageTransactions PageTransaction[]
+
+  ukassaId          String? @unique
+  ukassaIdempotency String  @unique
   confirmationUrl   String?
   receiptUrl        String?
 
-  createdAt         DateTime      @default(now())
-  paidAt            DateTime?
-  refundedAt        DateTime?
+  createdAt  DateTime  @default(now())
+  paidAt     DateTime?
+  refundedAt DateTime?
 
   @@index([userId, createdAt])
   @@index([status])
@@ -213,17 +229,61 @@ enum PaymentStatus {
   refunded
 }
 
+// ---------- Pages balance ----------
+
+// История изменений баланса страниц. Источник истины для аудита.
+// User.balancePages — денормализованная сумма всех delta для быстрого чтения.
+// Все изменения баланса проходят строго через эту таблицу в одной транзакции
+// с обновлением User.balancePages.
+model PageTransaction {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Положительный — пополнение, отрицательный — списание.
+  delta        Int
+  reason       PageTransactionReason
+  // Баланс пользователя ПОСЛЕ применения delta (для удобства и аудита).
+  balanceAfter Int
+
+  // Привязка к источнику изменения (опционально, зависит от reason).
+  paymentId  String?   @db.Uuid
+  payment    Payment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  documentId String?   @db.Uuid
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  // Идемпотентный ключ. Гарантирует, что одна и та же операция (например,
+  // refund по конкретному documentId, или grant по paymentId) не выполнится дважды.
+  // Формат: "<reason>:<entityId>" для бизнес-операций, NULL для ручных корректировок.
+  idempotencyKey String? @unique
+
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([documentId])
+  @@index([paymentId])
+}
+
+enum PageTransactionReason {
+  signup_bonus // приветственная страница новому пользователю
+  purchase // начисление за купленный пакет
+  document_charge // списание при confirmUpload
+  document_refund // возврат при ошибке pipeline / cancel
+  adjustment // ручная корректировка (admin)
+}
+
 // ---------- Deadlines (напоминания) ----------
 
 model Deadline {
-  id          String   @id @default(uuid()) @db.Uuid
-  documentId  String   @db.Uuid
-  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  id          String    @id @default(uuid()) @db.Uuid
+  documentId  String    @db.Uuid
+  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
   deadlineAt  DateTime
   description String
   remindedAt  DateTime?
-  snoozed     Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  snoozed     Boolean   @default(false)
+  createdAt   DateTime  @default(now())
 
   @@index([deadlineAt, remindedAt])
 }
@@ -232,9 +292,9 @@ model Deadline {
 
 model KbArticle {
   id        String   @id @default(uuid()) @db.Uuid
-  code      String   // NK_RF, GK_RF, ...
-  article   String   // 69, 69.1
-  edition   String   // дата редакции
+  code      String // NK_RF, GK_RF, ...
+  article   String // 69, 69.1
+  edition   String // дата редакции
   title     String
   body      String   @db.Text
   isCurrent Boolean  @default(true)

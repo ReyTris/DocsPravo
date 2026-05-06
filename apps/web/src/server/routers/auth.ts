@@ -6,6 +6,7 @@ import { PrismaClient } from "@pravoletter/db";
 import { router, publicProcedure } from "../trpc";
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from "../../lib/jwt";
 import { env } from "../../lib/env";
+import { grantSignupBonus } from "../services/pages";
 
 // OWASP-рекомендации argon2id (2024+). Фиксируем явно, чтобы апдейт библиотеки
 // не менял стоимость хеша незаметно.
@@ -59,6 +60,9 @@ export const authRouter = router({
       await ctx.db.consent.create({
         data: { userId: user.id, kind: "offer", version: "v1", ip: ctx.ip ?? undefined },
       });
+      // Приветственный бонус — 1 страница для пробного разбора. Идемпотентно по userId,
+      // так что повторный вызов (например, при ретрае мутации) не задвоит.
+      await grantSignupBonus(ctx.db, user.id);
       return issueTokens(ctx.db, user.id, user.role, ctx.ip, ctx.userAgent);
     }),
 
