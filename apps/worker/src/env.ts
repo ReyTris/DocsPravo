@@ -33,6 +33,9 @@ const Env = z.object({
   // Полный modelUri в формате `gpt://<folder>/qwen3.6-35b/latest`. Подсмотреть
   // точное имя — в карточке модели в Yandex AI Studio (кнопка "Использовать в API").
   VISION_MODEL_URI: z.string().optional(),
+  // Таймаут VL-запроса. Многостраничные документы (10+ картинок) уходят за минуту;
+  // дефолт vision-pipeline-а в core — 60с, для прода маловат.
+  VISION_TIMEOUT_MS: z.coerce.number().int().positive().default(240_000),
 });
 
 export const env = Env.parse(process.env);

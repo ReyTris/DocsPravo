@@ -107,6 +107,7 @@ async function runPipelineJob(documentId: string, doc: DocWithFiles): Promise<vo
       folderId: env.YANDEX_FOLDER_ID,
       modelUri,
       images,
+      timeoutMs: env.VISION_TIMEOUT_MS,
     });
     const tVisionEnd = Date.now();
     pipelineVersion = VISION_PIPELINE_VERSION;
