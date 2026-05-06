@@ -36,6 +36,10 @@ const Env = z.object({
   // Таймаут VL-запроса. Многостраничные документы (10+ картинок) уходят за минуту;
   // дефолт vision-pipeline-а в core — 60с, для прода маловат.
   VISION_TIMEOUT_MS: z.coerce.number().int().positive().default(240_000),
+  // Override бюджета токенов VL-модели. Если не задан — считается из числа
+  // страниц: 8000 + pages * 2000 (cap 64000). Подкручивай вручную, если на
+  // конкретной модели thinking ест больше или меньше.
+  VISION_MAX_TOKENS: z.coerce.number().int().positive().optional(),
 });
 
 export const env = Env.parse(process.env);

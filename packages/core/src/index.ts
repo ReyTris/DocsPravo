@@ -9,3 +9,4 @@ export { extract, EXTRACT_PROMPT_VERSION } from "./steps/extract";
 export { analyze, ANALYZE_PROMPT_VERSION } from "./steps/analyze";
 export { navigate, NAVIGATOR_PROMPT_VERSION } from "./steps/navigator";
 export { summarizeYellow, YELLOW_SUMMARY_PROMPT_VERSION } from "./steps/yellow-summary";
+export { stylize, STYLIZE_PROMPT_VERSION } from "./steps/stylize";

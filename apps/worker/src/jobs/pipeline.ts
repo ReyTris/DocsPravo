@@ -8,8 +8,9 @@ import {
   PIPELINE_VERSION,
   runVisionPipeline,
   VISION_PIPELINE_VERSION,
+  stylize,
 } from "@pravoletter/core";
-import type { PipelineResult } from "@pravoletter/schemas";
+import type { PipelineResult, Style } from "@pravoletter/schemas";
 import { downloadObject } from "../storage";
 import { ocrDocument, preprocessImage } from "../ocr";
 import { getProvider } from "../llm";
@@ -116,12 +117,14 @@ async function runPipelineJob(documentId: string, doc: DocWithFiles): Promise<vo
       modelUri,
       images,
       timeoutMs: env.VISION_TIMEOUT_MS,
+      maxTokens: env.VISION_MAX_TOKENS,
     });
     const tVisionEnd = Date.now();
     pipelineVersion = VISION_PIPELINE_VERSION;
 
     console.log(
       `[pipeline] document=${documentId} vision pages=${filesToProcess.length} ` +
+        `maxTokens=${env.VISION_MAX_TOKENS ?? "auto"} ` +
         `download=${tDownloadEnd - tDownloadStart}ms vision=${tVisionEnd - tVisionStart}ms ` +
         `total=${tVisionEnd - tStart}ms status=${result.status} tier=${result.tier ?? "-"} ` +
         `error=${result.error ?? "-"} model=${modelUri}`,
@@ -213,6 +216,33 @@ async function runPipelineJob(documentId: string, doc: DocWithFiles): Promise<vo
       `[pipeline] full result:`,
       JSON.stringify(result, null, 2).slice(0, 2000),
     );
+  }
+
+  // Опциональная стилизация. Шаг идёт ПОСЛЕ основного pipeline и не влияет
+  // на юридическую часть результата — просто добавляет stylized-блок к analysis.
+  // Если упадёт — основной разбор всё равно остаётся валидным.
+  // doc.style — новое поле; при первом запуске после миграции prisma generate
+  // мог быть заблокирован running-процессом, поэтому читаем через unknown-cast.
+  const style = ((doc as unknown as { style: string | null }).style as Style | null) ?? null;
+  if (style && style !== "normal" && result.status === "ok" && result.analysis) {
+    try {
+      const tStyleStart = Date.now();
+      const stylized = await stylize(
+        getProvider(),
+        result.analysis,
+        style,
+        result.navigator ?? null,
+      );
+      if (stylized) {
+        result = { ...result, stylized };
+      }
+      console.log(
+        `[pipeline] document=${documentId} stylize style=${style} ` +
+          `duration=${Date.now() - tStyleStart}ms ok=${!!stylized}`,
+      );
+    } catch (err) {
+      console.warn(`[pipeline] document=${documentId} stylize failed:`, err);
+    }
   }
 
   // Денормализация для списка

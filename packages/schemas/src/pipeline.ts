@@ -71,13 +71,26 @@ const nullableString = z
     return v;
   });
 
+// Толерантная ISO-дата: либо строка вида YYYY-MM-DD, либо null.
+// Если LLM вернёт «31.12.2011», «2011-XX-YY», пустую строку или произвольный
+// текст — нормализуем в null. Оригинальная формулировка обычно сохраняется
+// в соседнем поле raw_text/raw_quote, так что данные не теряются.
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const nullableIsoDate = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((v) => {
+    if (v === null || v === undefined) return null;
+    const trimmed = v.trim();
+    return ISO_DATE_RE.test(trimmed) ? trimmed : null;
+  });
+
 export const MoneySchema = z.object({
   amount_rub: z.number().nullable(),
   description: nullableString,
 });
 
 export const DeadlineSchema = z.object({
-  date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  date_iso: nullableIsoDate,
   raw_text: nullableString,
   consequence: nullableString,
 });
@@ -94,7 +107,7 @@ export const ExtractOutputSchema = z.object({
   sender: nullableString,
   recipient_masked: nullableString,
   document_number: z.string().nullable(),
-  document_date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  document_date_iso: nullableIsoDate,
   subject_one_line: z.string().max(200).nullable().catch(null),
   amounts: z.array(MoneySchema).default([]),
   deadlines: z.array(DeadlineSchema).default([]),
@@ -143,7 +156,7 @@ export const AnalysisOutputSchema = z.object({
     .default([]),
   critical_deadline: z
     .object({
-      date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+      date_iso: nullableIsoDate,
       what_to_do: nullableString,
       consequence_of_missing: nullableString,
     })
@@ -252,7 +265,7 @@ export const NavigatorOutputSchema = z.object({
   ),
   key_dates: z.array(
     z.object({
-      date_iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+      date_iso: nullableIsoDate,
       raw_text: nullableString,
       what_for: nullableString,
     }),
@@ -290,6 +303,80 @@ export const YellowSummaryOutputSchema = z.object({
 });
 export type YellowSummaryOutput = z.infer<typeof YellowSummaryOutputSchema>;
 
+// ---------- Стилизация (опциональный «прикол» поверх разбора) ----------
+// Стиль не меняет суть разбора — это отдельный текстовый пересказ заголовка
+// и эссенции документа в выбранном тоне. Юридически значимая версия всегда
+// остаётся в analysis.mood + analysis.essence.
+
+export const StyleEnum = z.enum([
+  "normal",        // без стилизации
+  "gopnik",        // блатняк-братан с района
+  "yoda",          // Магистр Йода
+  "drunk_lawyer",  // пьяный сосед-юрист
+]);
+export type Style = z.infer<typeof StyleEnum>;
+
+export const StylizedOutputSchema = z.object({
+  style: StyleEnum,
+  headline: nullableString.describe("Стилизованный аналог mood.headline — одна-две фразы"),
+  summary: nullableString.describe("Стилизованный аналог essence — 3-6 предложений"),
+  what_sender_wants: nullableString.describe("Стилизованный пересказ what_sender_wants"),
+  steps: z
+    .array(
+      z.object({
+        step: nullableString,
+        detail: nullableString,
+      }),
+    )
+    .default([])
+    .describe("Стилизованные шаги what_to_do_now (тот же порядок и количество)"),
+  important_aspects: z
+    .array(z.string())
+    .default([])
+    .describe("Стилизованные important_aspects (тот же порядок и количество)"),
+  pitfalls: z
+    .array(
+      z.object({
+        title: nullableString,
+        explanation: nullableString,
+      }),
+    )
+    .default([])
+    .describe("Стилизованные pitfalls (тот же порядок и количество, severity не передаётся)"),
+  case_complexity_explanation: nullableString.describe(
+    "Стилизованный case_complexity.explanation",
+  ),
+  key_facts: z
+    .array(
+      z.object({
+        label: nullableString,
+        value: nullableString,
+      }),
+    )
+    .default([])
+    .describe("Стилизованные key_facts (тот же порядок и количество)"),
+  critical_deadline: z
+    .object({
+      what_to_do: nullableString,
+      consequence_of_missing: nullableString,
+    })
+    .nullable()
+    .default(null)
+    .describe("Стилизованный critical_deadline (date_iso не передаётся)"),
+  verify_in_original: z
+    .array(z.string())
+    .default([])
+    .describe("Стилизованный verify_in_original (тот же порядок и количество)"),
+  need_lawyer_reasons: z
+    .array(z.string())
+    .default([])
+    .describe("Стилизованные need_lawyer.reasons (тот же порядок и количество)"),
+  navigator_summary: nullableString.describe(
+    "Стилизованный navigator.short_summary — пересказ документа простым языком",
+  ),
+});
+export type StylizedOutput = z.infer<typeof StylizedOutputSchema>;
+
 // ---------- Финальный результат пайплайна ----------
 
 export const PipelineStatusEnum = z.enum([
@@ -306,6 +393,7 @@ export const PipelineResultSchema = z.object({
   classify: ClassifyOutputSchema.optional(),
   extract: ExtractOutputSchema.optional(),
   analysis: AnalysisOutputSchema.optional(),
+  stylized: StylizedOutputSchema.optional(),
   error: z.string().optional(),
   meta: z.object({
     prompt_version: z.string(),

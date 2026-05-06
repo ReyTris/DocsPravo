@@ -1,10 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { hasSession } from "@/lib/auth-client";
-import type { AnalysisOutput, NavigatorOutput } from "@pravoletter/schemas";
+import type {
+  AnalysisOutput,
+  NavigatorOutput,
+  Style,
+  StylizedOutput,
+} from "@pravoletter/schemas";
+
+const STYLE_LABEL: Record<Exclude<Style, "normal">, { emoji: string; label: string }> = {
+  gopnik: { emoji: "🧢", label: "Блатняк" },
+  yoda: { emoji: "🟢", label: "Магистр Йода" },
+  drunk_lawyer: { emoji: "🍻", label: "Пьяный юрист" },
+};
 
 const PROCESSING = new Set([
   "uploaded",
@@ -25,9 +36,7 @@ const STATUS_LABEL: Record<string, string> = {
 export default function DocumentPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
-  const search = useSearchParams();
   const id = params.id;
-  const justPaid = search.get("paid") === "1";
 
   useEffect(() => {
     if (!hasSession()) router.replace("/login");
@@ -50,23 +59,12 @@ export default function DocumentPage() {
   );
 
   const utils = trpc.useUtils();
-  const createPayment = trpc.payments.create.useMutation({
-    onSuccess: (r) => {
-      window.location.href = r.confirmationUrl;
-    },
-  });
-  const devMockPay = trpc.payments.devMockPay.useMutation({
-    onSuccess: () => utils.documents.getById.invalidate({ id }),
-  });
   const reprocess = trpc.documents.reprocess.useMutation({
     onSuccess: () => utils.documents.getById.invalidate({ id }),
   });
   const cancel = trpc.documents.cancel.useMutation({
     onSuccess: () => utils.documents.getById.invalidate({ id }),
   });
-
-  const buy = () => createPayment.mutate({ documentId: id, product: "analysis" });
-  const mockPay = () => devMockPay.mutate({ documentId: id });
 
   if (doc.isLoading) return <Centered>Загрузка...</Centered>;
   if (doc.error) return <Centered>Ошибка: {doc.error.message}</Centered>;
@@ -128,12 +126,6 @@ export default function DocumentPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
-      {justPaid && (
-        <div className="mb-6 rounded-md bg-[var(--ok)]/10 p-3 text-sm text-[var(--ok)]">
-          Оплата прошла. Разбор открыт.
-        </div>
-      )}
-
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Разбор документа</h1>
@@ -151,87 +143,11 @@ export default function DocumentPage() {
 
       <ResponsibilityDisclaimer />
 
-      {d.navigator && <NavigatorBlock nav={d.navigator} />}
-
-      {d.paid && d.analysis ? (
-        <AnalysisView a={d.analysis} />
-      ) : (
-        <Paywall
-          available={d.analysisAvailable}
-          onBuy={buy}
-          paying={createPayment.isPending}
-          onMockPay={mockPay}
-          mockPaying={devMockPay.isPending}
-          onReprocess={() => reprocess.mutate({ id })}
-          reprocessing={reprocess.isPending}
-        />
+      {d.navigator && (
+        <NavigatorBlock nav={d.navigator} stylized={d.stylized ?? null} />
       )}
+      {d.analysis && <AnalysisView a={d.analysis} stylized={d.stylized ?? null} />}
     </main>
-  );
-}
-
-function Paywall({
-  available,
-  onBuy,
-  paying,
-  onMockPay,
-  mockPaying,
-  onReprocess,
-  reprocessing,
-}: {
-  available: boolean;
-  onBuy: () => void;
-  paying: boolean;
-  onMockPay: () => void;
-  mockPaying: boolean;
-  onReprocess: () => void;
-  reprocessing: boolean;
-}) {
-  return (
-    <section className="mt-8 rounded-lg border border-white/10 bg-white/5 p-6">
-      <h2 className="text-lg font-semibold">Получить разбор документа</h2>
-      <p className="mt-2 text-sm text-[var(--muted)]">
-        Понятный пересказ простыми словами: что это за документ, что важно, какие сроки,
-        подводные камни и что обязательно сверить в оригинале.
-      </p>
-
-      <div className="mt-5 flex items-baseline gap-3">
-        <div className="text-2xl font-bold">290 ₽</div>
-        <div className="text-sm text-[var(--muted)]">единый тариф</div>
-      </div>
-
-      <button
-        onClick={onBuy}
-        disabled={paying || !available}
-        className="mt-4 w-full rounded-md bg-black px-5 py-3 text-sm font-medium text-white disabled:bg-white/10 sm:w-auto"
-      >
-        {paying ? "..." : "Получить разбор"}
-      </button>
-
-      <p className="mt-3 text-xs text-[var(--muted)]">
-        Оплата через ЮKassa. Чек уходит автоматически в «Мой налог».
-      </p>
-
-      <div className="mt-6 border-t border-white/10 pt-4">
-        <div className="text-xs font-semibold text-[var(--brand-2)]">🧪 Тестовый режим</div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <button
-            onClick={onMockPay}
-            disabled={mockPaying}
-            className="rounded-md bg-purple-600 px-3 py-1.5 text-xs text-white hover:bg-purple-700 disabled:opacity-50"
-          >
-            {mockPaying ? "..." : "Открыть без оплаты"}
-          </button>
-          <button
-            onClick={onReprocess}
-            disabled={reprocessing}
-            className="rounded-md border border-purple-400 bg-white/5 px-3 py-1.5 text-xs text-purple-400 hover:bg-purple-500/20 disabled:opacity-50"
-          >
-            {reprocessing ? "Запускаем..." : "🔄 Перегенерировать"}
-          </button>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -255,13 +171,27 @@ function ResponsibilityDisclaimer() {
   );
 }
 
-function NavigatorBlock({ nav }: { nav: NavigatorOutput }) {
+function NavigatorBlock({
+  nav,
+  stylized,
+}: {
+  nav: NavigatorOutput;
+  stylized: StylizedOutput | null;
+}) {
+  const showStyled =
+    !!stylized && stylized.style !== "normal" && !!stylized.navigator_summary;
+  const summary = showStyled ? stylized.navigator_summary : nav.short_summary;
   return (
     <section className="mt-6 rounded-lg border border-white/10 p-5">
       <h2 className="font-semibold">📄 Что это за документ</h2>
-      {nav.short_summary && (
-        <div className="mt-3 whitespace-pre-line rounded-md bg-[var(--brand)]/10 p-4 text-[15px] leading-relaxed text-[var(--text)]">
-          {nav.short_summary}
+      {summary && (
+        <div
+          className={
+            "mt-3 whitespace-pre-line rounded-md bg-[var(--brand)]/10 p-4 text-[15px] leading-relaxed text-[var(--text)] " +
+            (showStyled ? "italic" : "")
+          }
+        >
+          {summary}
         </div>
       )}
       <dl className="mt-3 space-y-2 text-sm">
@@ -310,44 +240,94 @@ function NavigatorBlock({ nav }: { nav: NavigatorOutput }) {
   );
 }
 
-function AnalysisView({ a }: { a: AnalysisOutput }) {
+function AnalysisView({
+  a,
+  stylized,
+}: {
+  a: AnalysisOutput;
+  stylized: StylizedOutput | null;
+}) {
   const facts = a.key_facts.filter((f) => f.label?.trim() || f.value?.trim());
   const aspects = a.important_aspects.filter((s) => s?.trim());
   const verify = a.verify_in_original.filter((s) => s?.trim());
   const pitfalls = a.pitfalls.filter((p) => p.title?.trim() || p.explanation?.trim());
   const steps = a.what_to_do_now.filter((s) => s.step?.trim() || s.detail?.trim());
 
+  const hasStyle =
+    !!stylized && stylized.style !== "normal" && (stylized.headline || stylized.summary);
+  const [styleOn, setStyleOn] = useState(true);
+  const showStyled = hasStyle && styleOn;
+  const styleMeta =
+    stylized && stylized.style !== "normal" ? STYLE_LABEL[stylized.style] : null;
+
   return (
     <div className="mt-6 space-y-6">
-      {a.mood?.headline && <MoodBanner mood={a.mood} />}
+      {hasStyle && styleMeta && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-[var(--brand)]/30 bg-[var(--brand)]/5 p-3 text-sm">
+          <span className="text-base">{styleMeta.emoji}</span>
+          <span className="font-semibold">Стиль: {styleMeta.label}</span>
+          <span className="text-xs text-[var(--muted)]">
+            (только тон — даты, суммы и статьи неизменны)
+          </span>
+          <button
+            type="button"
+            onClick={() => setStyleOn((v) => !v)}
+            className="ml-auto rounded-md border border-white/10 px-3 py-1 text-xs hover:bg-white/10"
+          >
+            {styleOn ? "Показать обычный" : `Показать в стиле «${styleMeta.label}»`}
+          </button>
+        </div>
+      )}
+
+      {showStyled && stylized?.headline ? (
+        <div className="rounded-lg border-l-4 border-[var(--brand)] bg-[var(--brand)]/10 p-4 text-base font-medium">
+          <span className="mr-2">{styleMeta?.emoji}</span>
+          {stylized.headline}
+        </div>
+      ) : (
+        a.mood?.headline && <MoodBanner mood={a.mood} />
+      )}
 
       {a.title && (
         <Block title="📝 Что это за документ">
           <p className="text-base font-medium">{a.title}</p>
-          {a.essence && <p className="mt-2 leading-relaxed">{a.essence}</p>}
+          {showStyled && stylized?.summary ? (
+            <p className="mt-2 italic leading-relaxed text-[var(--text)]">
+              {stylized.summary}
+            </p>
+          ) : (
+            a.essence && <p className="mt-2 leading-relaxed">{a.essence}</p>
+          )}
         </Block>
       )}
 
-      {a.what_sender_wants && (
+      {(showStyled ? stylized?.what_sender_wants : a.what_sender_wants) && (
         <Block title="🎯 Чего хочет отправитель">
-          <p className="leading-relaxed">{a.what_sender_wants}</p>
+          <p className={"leading-relaxed " + (showStyled ? "italic" : "")}>
+            {showStyled ? stylized?.what_sender_wants : a.what_sender_wants}
+          </p>
         </Block>
       )}
 
       {steps.length > 0 && (
         <Block title="👉 Что сделать прямо сейчас" tone="warning">
           <ol className="space-y-3">
-            {steps.map((s, i) => (
-              <li key={i} className="rounded border border-white/10 bg-white/5 p-3">
-                <div className="flex gap-2">
-                  <span className="font-semibold text-[var(--muted)]">{i + 1}.</span>
-                  <div>
-                    {s.step && <div className="font-semibold">{s.step}</div>}
-                    {s.detail && <p className="mt-1 text-sm text-[var(--muted)]">{s.detail}</p>}
+            {steps.map((s, i) => {
+              const ss = showStyled ? stylized?.steps?.[i] : null;
+              const step = ss?.step ?? s.step;
+              const detail = ss?.detail ?? s.detail;
+              return (
+                <li key={i} className="rounded border border-white/10 bg-white/5 p-3">
+                  <div className="flex gap-2">
+                    <span className="font-semibold text-[var(--muted)]">{i + 1}.</span>
+                    <div className={showStyled ? "italic" : ""}>
+                      {step && <div className="font-semibold">{step}</div>}
+                      {detail && <p className="mt-1 text-sm text-[var(--muted)]">{detail}</p>}
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ol>
         </Block>
       )}
@@ -355,12 +335,29 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
       {facts.length > 0 && (
         <Block title="📋 Ключевые факты">
           <dl className="space-y-2 text-sm">
-            {facts.map((f, i) => (
-              <div key={i} className="grid grid-cols-[180px_1fr] gap-3">
-                <dt className="text-[var(--muted)]">{f.label}</dt>
-                <dd className="text-[var(--text)]">{f.value}</dd>
-              </div>
-            ))}
+            {facts.map((f, i) => {
+              const sf = showStyled ? stylized?.key_facts?.[i] : null;
+              const label = sf?.label ?? f.label;
+              const value = sf?.value ?? f.value;
+              return (
+                <div key={i} className="grid grid-cols-[180px_1fr] gap-3">
+                  <dt
+                    className={
+                      "text-[var(--muted)] " + (showStyled ? "italic" : "")
+                    }
+                  >
+                    {label}
+                  </dt>
+                  <dd
+                    className={
+                      "text-[var(--text)] " + (showStyled ? "italic" : "")
+                    }
+                  >
+                    {value}
+                  </dd>
+                </div>
+              );
+            })}
           </dl>
         </Block>
       )}
@@ -373,13 +370,27 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
             {a.critical_deadline.date_iso && (
               <p className="text-2xl font-semibold">{a.critical_deadline.date_iso}</p>
             )}
-            {a.critical_deadline.what_to_do && (
-              <p className="mt-2">{a.critical_deadline.what_to_do}</p>
+            {(showStyled
+              ? stylized?.critical_deadline?.what_to_do
+              : a.critical_deadline.what_to_do) && (
+              <p className={"mt-2 " + (showStyled ? "italic" : "")}>
+                {showStyled
+                  ? stylized?.critical_deadline?.what_to_do
+                  : a.critical_deadline.what_to_do}
+              </p>
             )}
-            {a.critical_deadline.consequence_of_missing && (
-              <p className="mt-2 text-sm text-[var(--danger)]">
+            {(showStyled
+              ? stylized?.critical_deadline?.consequence_of_missing
+              : a.critical_deadline.consequence_of_missing) && (
+              <p
+                className={
+                  "mt-2 text-sm text-[var(--danger)] " + (showStyled ? "italic" : "")
+                }
+              >
                 <span className="font-semibold">Если пропустить:</span>{" "}
-                {a.critical_deadline.consequence_of_missing}
+                {showStyled
+                  ? stylized?.critical_deadline?.consequence_of_missing
+                  : a.critical_deadline.consequence_of_missing}
               </p>
             )}
           </Block>
@@ -388,9 +399,14 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
       {aspects.length > 0 && (
         <Block title="💡 Что важно">
           <ul className="list-disc space-y-2 pl-5">
-            {aspects.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
+            {aspects.map((s, i) => {
+              const styled = showStyled ? stylized?.important_aspects?.[i] : null;
+              return (
+                <li key={i} className={showStyled ? "italic" : ""}>
+                  {styled ?? s}
+                </li>
+              );
+            })}
           </ul>
         </Block>
       )}
@@ -398,17 +414,28 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
       {pitfalls.length > 0 && (
         <Block title="⚠️ Подводные камни" tone="warning">
           <ul className="space-y-3">
-            {pitfalls.map((p, i) => (
-              <li key={i} className="rounded border border-white/10 bg-white/5 p-3">
-                <div className="flex items-center gap-2">
-                  <SeverityDot severity={p.severity} />
-                  <span className="font-semibold">{p.title}</span>
-                </div>
-                {p.explanation && (
-                  <p className="mt-1 text-sm text-[var(--muted)]">{p.explanation}</p>
-                )}
-              </li>
-            ))}
+            {pitfalls.map((p, i) => {
+              const sp = showStyled ? stylized?.pitfalls?.[i] : null;
+              const title = sp?.title ?? p.title;
+              const explanation = sp?.explanation ?? p.explanation;
+              return (
+                <li key={i} className="rounded border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center gap-2">
+                    <SeverityDot severity={p.severity} />
+                    <span className={"font-semibold " + (showStyled ? "italic" : "")}>{title}</span>
+                  </div>
+                  {explanation && (
+                    <p
+                      className={
+                        "mt-1 text-sm text-[var(--muted)] " + (showStyled ? "italic" : "")
+                      }
+                    >
+                      {explanation}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </Block>
       )}
@@ -416,9 +443,14 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
       {verify.length > 0 && (
         <Block title="✅ Что сверить в оригинале" tone="warning">
           <ol className="list-decimal space-y-2 pl-6">
-            {verify.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
+            {verify.map((s, i) => {
+              const sv = showStyled ? stylized?.verify_in_original?.[i] : null;
+              return (
+                <li key={i} className={showStyled ? "italic" : ""}>
+                  {sv ?? s}
+                </li>
+              );
+            })}
           </ol>
         </Block>
       )}
@@ -436,16 +468,24 @@ function AnalysisView({ a }: { a: AnalysisOutput }) {
               {a.case_complexity.level === "complex" ? "Сложный" : "Типовой"}
             </span>
           </div>
-          <p className="mt-2 text-sm">{a.case_complexity.explanation}</p>
+          <p className={"mt-2 text-sm " + (showStyled ? "italic" : "")}>
+            {(showStyled && stylized?.case_complexity_explanation) ||
+              a.case_complexity.explanation}
+          </p>
         </Block>
       )}
 
       {a.need_lawyer?.required && a.need_lawyer.reasons.length > 0 && (
         <Block title="⚖️ Когда нужен юрист" tone="danger">
           <ul className="list-disc space-y-1 pl-5">
-            {a.need_lawyer.reasons.map((r, i) => (
-              <li key={i}>{r}</li>
-            ))}
+            {a.need_lawyer.reasons.map((r, i) => {
+              const sr = showStyled ? stylized?.need_lawyer_reasons?.[i] : null;
+              return (
+                <li key={i} className={showStyled ? "italic" : ""}>
+                  {sr ?? r}
+                </li>
+              );
+            })}
           </ul>
         </Block>
       )}
