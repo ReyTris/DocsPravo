@@ -76,7 +76,7 @@ export default function DocumentPage() {
         <p className="mt-3 text-[var(--muted)]">
           Обычно 30–60 секунд. Страница обновится автоматически.
         </p>
-        <div className="mt-6 h-2 w-full animate-pulse rounded-full bg-white/10" />
+        <div className="progress-indeterminate mt-6 h-2 w-full" role="progressbar" aria-label="Обработка документа" />
         <button
           onClick={() => cancel.mutate({ id })}
           disabled={cancel.isPending}

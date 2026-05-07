@@ -114,6 +114,41 @@ textarea::placeholder {
   filter: brightness(0.92);
 }
 
+/* Индетерминантный прогресс-бар — видим на обеих темах */
+.progress-indeterminate {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--surface-hover);
+  border: 1px solid var(--card-border);
+}
+.progress-indeterminate::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  border-radius: 9999px;
+  background: linear-gradient(to right, var(--brand), var(--brand-2));
+  animation: progress-slide 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+[data-theme="dark"] .progress-indeterminate::before {
+  background: linear-gradient(to right, var(--brand), var(--brand-2));
+  box-shadow: 0 0 12px rgba(108, 140, 255, 0.5);
+}
+@keyframes progress-slide {
+  0%   { left: -40%; }
+  100% { left: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-indeterminate::before {
+    animation: none;
+    left: 0;
+    width: 100%;
+    opacity: 0.6;
+  }
+}
+
 /* Градиент акцентного слова в hero — адаптивен под тему */
 .hero-accent {
   background: linear-gradient(to right, var(--accent-from), var(--accent-via), var(--accent-to));
