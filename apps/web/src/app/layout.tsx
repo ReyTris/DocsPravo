@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import { Providers } from "./providers";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+import { CookieBanner } from "@/components/CookieBanner";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
@@ -138,8 +140,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="min-h-screen font-sans antialiased text-[var(--text)]">
         <Providers>
-          <Header />
-          {children}
+          <div className="flex min-h-screen flex-col">
+            <Header />
+            <div className="flex-1">{children}</div>
+            <Footer />
+          </div>
+          <CookieBanner />
         </Providers>
       </body>
     </html>

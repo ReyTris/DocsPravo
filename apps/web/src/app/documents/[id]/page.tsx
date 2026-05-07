@@ -80,7 +80,7 @@ export default function DocumentPage() {
         <button
           onClick={() => cancel.mutate({ id })}
           disabled={cancel.isPending}
-          className="mt-6 rounded-md border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--muted)] hover:bg-white/10 disabled:opacity-50"
+          className="btn-brand mt-6 inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
         >
           {cancel.isPending ? "Отменяем..." : "Отменить обработку"}
         </button>
@@ -99,7 +99,7 @@ export default function DocumentPage() {
         <button
           onClick={() => reprocess.mutate({ id })}
           disabled={reprocess.isPending}
-          className="mt-6 rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
+          className="btn-brand mt-6 inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
         >
           {reprocess.isPending ? "Запускаем..." : "Запустить заново"}
         </button>
@@ -139,10 +139,10 @@ export default function DocumentPage() {
         <button
           onClick={() => reprocess.mutate({ id })}
           disabled={reprocess.isPending}
-          className="shrink-0 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-[var(--muted)] hover:bg-white/10 disabled:opacity-50"
+          className="btn-brand inline-flex shrink-0 items-center justify-center rounded-xl px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           title="Перегенерировать разбор по обновлённому промту"
         >
-          {reprocess.isPending ? "Запускаем..." : "🔄 Перегенерировать"}
+          {reprocess.isPending ? "Запускаем..." : "Перегенерировать"}
         </button>
       </div>
 
