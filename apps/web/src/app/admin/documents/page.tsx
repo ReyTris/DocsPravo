@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
@@ -27,7 +27,7 @@ const TIER_STYLE: Record<string, string> = {
   red:    "bg-[rgba(248,113,113,0.15)] text-[var(--danger)]",
 };
 
-export default function AdminDocumentsPage() {
+function AdminDocumentsContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<(typeof STATUSES)[number]>("");
   const userId = searchParams.get("userId") ?? undefined;
@@ -122,5 +122,13 @@ export default function AdminDocumentsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminDocumentsPage() {
+  return (
+    <Suspense fallback={<p className="text-[var(--muted)]">Загрузка...</p>}>
+      <AdminDocumentsContent />
+    </Suspense>
   );
 }
