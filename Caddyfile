@@ -1,0 +1,3 @@
+prodoki.online, www.prodoki.online {
+    reverse_proxy web:3000
+}

@@ -1,0 +1,13 @@
+.git
+.claude
+node_modules
+**/node_modules
+**/.next
+**/dist
+.env
+.env.*
+!.env.example
+*.log
+.turbo
+**/coverage
+packages/core/dataset
