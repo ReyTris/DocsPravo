@@ -1,4 +1,19 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: prodoki
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d prodoki"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   web:
     build:
       context: .
@@ -8,7 +23,8 @@ services:
     expose:
       - "3000"
     depends_on:
-      - worker
+      postgres:
+        condition: service_healthy
 
   worker:
     build:
@@ -16,6 +32,9 @@ services:
       dockerfile: apps/worker/Dockerfile
     restart: unless-stopped
     env_file: /etc/prodoki/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   caddy:
     image: caddy:2-alpine
@@ -34,3 +53,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  postgres_data:
