@@ -56,7 +56,7 @@ function detectMime(file: File): AcceptedType | null {
   return null;
 }
 
-const MAX_BYTES = 20 * 1024 * 1024;
+const MAX_BYTES = 30 * 1024 * 1024;
 const MAX_FILES = 20;
 const MAX_TEXT_LEN = 50_000;
 const MIN_TEXT_LEN = 20;
@@ -477,7 +477,7 @@ export default function UploadPage() {
             />
           </label>
           <p className="mt-3 text-xs text-[var(--muted)]">
-            PDF, JPEG, PNG, HEIC · до 20 МБ каждый · максимум {MAX_FILES} файлов
+            PDF, JPEG, PNG, HEIC · до 30 МБ каждый · максимум {MAX_FILES} файлов
           </p>
         </div>
       )}

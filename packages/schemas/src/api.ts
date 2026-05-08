@@ -62,7 +62,7 @@ export const FileMeta = z.object({
     "image/png",
     "image/heic",
   ]),
-  sizeBytes: z.number().int().positive().max(20 * 1024 * 1024), // 20 МБ
+  sizeBytes: z.number().int().positive().max(30 * 1024 * 1024), // 30 МБ
 });
 export type FileMeta = z.infer<typeof FileMeta>;
 
