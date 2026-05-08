@@ -21,7 +21,7 @@ import {
   ExtractOutputSchema,
   NavigatorOutputSchema,
   type PipelineResult,
-} from "@pravoletter/schemas";
+} from "@prodoki/schemas";
 import { route } from "./router";
 
 export const VISION_PIPELINE_VERSION = "vision-v1";
@@ -71,7 +71,7 @@ const VisionCombinedSchema = z.object({
   analysis: AnalysisOutputSchema,
 });
 
-const SYSTEM_PROMPT = `Ты — помощник сервиса PravoLetter (РФ). Тебе показывают \
+const SYSTEM_PROMPT = `Ты — помощник сервиса ПроДоки (РФ). Тебе показывают \
 страницы официального письма (картинки) и просят за один проход объяснить \
 обычному человеку, что это и что делать. Представь, что разговариваешь со \
 школьником или пожилым родственником, который никогда не сталкивался с судами, \

@@ -1,4 +1,4 @@
-# Архитектура PravoLetter
+# Архитектура ПроДоки
 
 ## TL;DR
 
@@ -171,7 +171,7 @@ Bearer JWT в заголовке `Authorization`. Стандарт работа�
 Когда настанет время:
 
 1. Создать `apps/mobile/` — Expo + React Native.
-2. Импортировать типы из `@pravoletter/schemas` — те же.
+2. Импортировать типы из `@prodoki/schemas` — те же.
 3. Подключить `@trpc/client` с тем же AppRouter — типы из `apps/web/src/server/routers`.
 4. Auth flow тот же (JWT в `Authorization: Bearer ...`).
 5. Backend трогать **не требуется**.
@@ -181,7 +181,7 @@ UI-компоненты между web и mobile **не шарим** — это 
 ## Структура (на скриншот)
 
 ```
-pravoletter/
+prodoki/
 ├── .env                       единственный для dev
 ├── .env.example
 ├── package.json               скрипты pnpm dev / pnpm dev:web / pnpm dev:worker

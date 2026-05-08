@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, type DragEvent, type ChangeEv
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { hasSession } from "@/lib/auth-client";
-import type { Style } from "@pravoletter/schemas";
+import type { Style } from "@prodoki/schemas";
 
 type StyleOption = {
   value: Style;

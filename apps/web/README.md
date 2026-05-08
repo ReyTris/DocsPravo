@@ -44,7 +44,7 @@ src/
 pnpm dev:web
 
 # или
-pnpm --filter @pravoletter/web dev
+pnpm --filter @prodoki/web dev
 ```
 
 Скрипт `dev` обёрнут в `dotenv-cli`, читает корневой `.env`. Никакого собственного `.env` в `apps/web/` создавать не нужно.

@@ -1,5 +1,5 @@
 {
-  "name": "@pravoletter/web",
+  "name": "@prodoki/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,9 +13,9 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.645.0",
     "@aws-sdk/s3-request-presigner": "^3.645.0",
-    "@pravoletter/core": "workspace:*",
-    "@pravoletter/db": "workspace:*",
-    "@pravoletter/schemas": "workspace:*",
+    "@prodoki/core": "workspace:*",
+    "@prodoki/db": "workspace:*",
+    "@prodoki/schemas": "workspace:*",
     "@tanstack/react-query": "^5.51.0",
     "@trpc/client": "^11.0.0-rc.502",
     "@trpc/next": "^11.0.0-rc.502",

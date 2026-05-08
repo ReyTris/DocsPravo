@@ -26,7 +26,7 @@ export async function signAccessToken(payload: AccessTokenPayload): Promise<{ to
     .setSubject(payload.sub)
     .setIssuedAt()
     .setExpirationTime(expiresAt)
-    .setIssuer("pravoletter")
+    .setIssuer("prodoki")
     .sign(secret);
   return { token, expiresAt };
 }
@@ -35,7 +35,7 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenPaylo
   try {
     const e = env();
     const secret = new TextEncoder().encode(e.JWT_SECRET);
-    const { payload } = await jwtVerify(token, secret, { issuer: "pravoletter" });
+    const { payload } = await jwtVerify(token, secret, { issuer: "prodoki" });
     if (!payload.sub) return null;
     return { sub: payload.sub, role: (payload.role as "user" | "admin") ?? "user" };
   } catch {

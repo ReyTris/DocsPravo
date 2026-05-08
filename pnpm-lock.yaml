@@ -29,13 +29,13 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.645.0
         version: 3.1041.0
-      '@pravoletter/core':
+      '@prodoki/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@pravoletter/db':
+      '@prodoki/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@pravoletter/schemas':
+      '@prodoki/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
       '@tanstack/react-query':
@@ -108,13 +108,13 @@ importers:
       '@aws-sdk/client-s3':
         specifier: ^3.645.0
         version: 3.1041.0
-      '@pravoletter/core':
+      '@prodoki/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@pravoletter/db':
+      '@prodoki/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@pravoletter/schemas':
+      '@prodoki/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
       mammoth:
@@ -151,7 +151,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@pravoletter/schemas':
+      '@prodoki/schemas':
         specifier: workspace:*
         version: link:../schemas
       openai:

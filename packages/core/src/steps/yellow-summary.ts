@@ -10,7 +10,7 @@ import {
   YellowSummaryOutputSchema,
   type NavigatorOutput,
   type YellowSummaryOutput,
-} from "@pravoletter/schemas";
+} from "@prodoki/schemas";
 
 export const YELLOW_SUMMARY_PROMPT_VERSION = "yellow-summary-compact-v4";
 

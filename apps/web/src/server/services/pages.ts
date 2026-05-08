@@ -1,5 +1,5 @@
 /**
- * Тонкая обёртка над @pravoletter/db pages: ловит InsufficientBalanceError
+ * Тонкая обёртка над @prodoki/db pages: ловит InsufficientBalanceError
  * и кидает TRPCError, который правильно сериализуется на клиенте.
  *
  * Бизнес-логика баланса лежит в packages/db/src/pages.ts — чтобы worker
@@ -19,7 +19,7 @@ import {
   SIGNUP_BONUS_PAGES,
   isPagePackageId,
   type PagePackageId,
-} from "@pravoletter/db";
+} from "@prodoki/db";
 
 export {
   getBalance,

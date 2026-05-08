@@ -1,4 +1,4 @@
-import { prisma } from "@pravoletter/db";
+import { prisma } from "@prodoki/db";
 
 const users = await prisma.user.findMany({
   select: { id: true, email: true, balancePages: true, createdAt: true },

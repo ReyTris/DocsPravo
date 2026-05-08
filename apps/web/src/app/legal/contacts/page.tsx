@@ -5,7 +5,7 @@ import { COMPANY, LEGAL_EFFECTIVE_DATE } from "@/lib/legal";
 export const metadata = buildMetadata({
   title: "Контакты и реквизиты",
   description:
-    "Реквизиты исполнителя сервиса PravoLetter: наименование, ИНН, ОГРН, юридический адрес, контакты для связи.",
+    "Реквизиты исполнителя сервиса ПроДоки: наименование, ИНН, ОГРН, юридический адрес, контакты для связи.",
   path: "/legal/contacts",
 });
 

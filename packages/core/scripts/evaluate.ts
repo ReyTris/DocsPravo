@@ -2,7 +2,7 @@
  * Прогон датасета через цепочку и подсчёт метрик качества.
  *
  * Запуск из корня репозитория:
- *   pnpm --filter @pravoletter/core evaluate
+ *   pnpm --filter @prodoki/core evaluate
  *
  * Корневой .env должен содержать:
  *   LLM_PROVIDER=openai|gigachat

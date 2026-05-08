@@ -1,5 +1,5 @@
 import type { LLMProvider } from "../providers/llm";
-import { ClassifyOutputSchema, type ClassifyOutput } from "@pravoletter/schemas";
+import { ClassifyOutputSchema, type ClassifyOutput } from "@prodoki/schemas";
 
 export const CLASSIFY_PROMPT_VERSION = "classify-v1";
 

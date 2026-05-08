@@ -16,7 +16,7 @@
  */
 
 import type { LLMProvider } from "../providers/llm";
-import { NavigatorOutputSchema, type NavigatorOutput } from "@pravoletter/schemas";
+import { NavigatorOutputSchema, type NavigatorOutput } from "@prodoki/schemas";
 
 export const NAVIGATOR_PROMPT_VERSION = "navigator-plain-v2";
 

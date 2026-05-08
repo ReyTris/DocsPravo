@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Проект
 
-**PravoLetter** — AI-сервис разбора писем от государства и банков для физлиц и ИП в РФ. Монорепо на pnpm + Turbo.
+**ПроДоки** — AI-сервис разбора писем от государства и банков для физлиц и ИП в РФ. Монорепо на pnpm + Turbo.
 
 ## Команды (всегда из корня)
 
@@ -21,7 +21,7 @@ pnpm db:studio      # GUI БД (5555)
 pnpm evaluate       # прогон датасета через промт-цепочку (packages/core)
 ```
 
-Запустить один пакет: `pnpm --filter @pravoletter/<name> <script>` (имена: `web`, `worker`, `core`, `db`, `schemas`).
+Запустить один пакет: `pnpm --filter @prodoki/<name> <script>` (имена: `web`, `worker`, `core`, `db`, `schemas`).
 
 Node ≥ 20, pnpm 9.7.0 (обязательный `packageManager`).
 

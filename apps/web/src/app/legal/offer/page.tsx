@@ -5,7 +5,7 @@ import { COMPANY, LEGAL_EFFECTIVE_DATE, LEGAL_VERSION } from "@/lib/legal";
 export const metadata = buildMetadata({
   title: "Публичная оферта",
   description:
-    "Публичная оферта на оказание услуг сервиса PravoLetter — автоматизированный разбор официальных документов.",
+    "Публичная оферта на оказание услуг сервиса ПроДоки — автоматизированный разбор официальных документов.",
   path: "/legal/offer",
 });
 
@@ -29,7 +29,7 @@ export default function OfferPage() {
       <h2>1. Термины</h2>
       <ul>
         <li>
-          <strong>Сервис</strong> — программно-аппаратный комплекс PravoLetter,
+          <strong>Сервис</strong> — программно-аппаратный комплекс ПроДоки,
           размещённый в сети Интернет и предоставляющий услуги
           автоматизированного анализа документов.
         </li>

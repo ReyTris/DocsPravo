@@ -14,7 +14,7 @@ import type {
   NavigatorOutput,
   Tier,
   SenderCategory,
-} from "@pravoletter/schemas";
+} from "@prodoki/schemas";
 
 const GREEN_DOC_KINDS = new Set([
   "trebovanie_fns",

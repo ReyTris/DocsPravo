@@ -1,9 +1,9 @@
 /**
  * Разовый скрипт: начислить страницы на баланс по email.
- * Запуск: pnpm --filter @pravoletter/worker exec dotenv -e ../../.env -- tsx scripts/grant-pages.ts <email> <pages> [note]
+ * Запуск: pnpm --filter @prodoki/worker exec dotenv -e ../../.env -- tsx scripts/grant-pages.ts <email> <pages> [note]
  */
 
-import { prisma } from "@pravoletter/db";
+import { prisma } from "@prodoki/db";
 
 async function main() {
   const [, , email, pagesArg, ...rest] = process.argv;

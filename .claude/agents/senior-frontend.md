@@ -27,7 +27,7 @@ widgets/    — крупные композитные блоки UI: header/, do
 
 1. **Server Components по умолчанию**. `'use client'` — только когда есть хуки/обработчики/браузерные API. Никогда не помечай весь layout как client.
 2. **Данные** — Server Components тянут через server-side tRPC caller; клиент использует `trpc.useQuery` только когда нужна интерактивность. Никаких `useEffect` для первичной загрузки.
-3. **Формы** — `react-hook-form` + `zodResolver` со схемой из `@pravoletter/schemas`. Сабмит — Server Action или tRPC mutation.
+3. **Формы** — `react-hook-form` + `zodResolver` со схемой из `@prodoki/schemas`. Сабмит — Server Action или tRPC mutation.
 4. **TypeScript strict**. Никаких `any`, `as unknown as`, `// @ts-ignore`. Если тип не выводится — фиксим источник.
 5. **Tailwind**. Без inline `style={{}}`. Используем shadcn-токены и `cn()` из `shared/lib/cn`. Тёмная тема через `dark:`.
 6. **Accessibility**. Семантические теги, `aria-*`, фокус-стейты, контраст AA. Все интерактивные элементы — кнопки/ссылки, не `<div onClick>`.

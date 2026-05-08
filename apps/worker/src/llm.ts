@@ -1,4 +1,4 @@
-import { createLLMProvider, type LLMProvider } from "@pravoletter/core";
+import { createLLMProvider, type LLMProvider } from "@prodoki/core";
 import { env } from "./env";
 
 let cached: LLMProvider | null = null;

@@ -1,8 +1,8 @@
 import argon2 from "argon2";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { LoginInput, RegisterInput, TokenPair } from "@pravoletter/schemas";
-import { PrismaClient } from "@pravoletter/db";
+import { LoginInput, RegisterInput, TokenPair } from "@prodoki/schemas";
+import { PrismaClient } from "@prodoki/db";
 import { router, publicProcedure } from "../trpc";
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from "../../lib/jwt";
 import { env } from "../../lib/env";

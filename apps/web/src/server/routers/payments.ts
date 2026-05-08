@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
-import { CreatePaymentInput, CreatePaymentOutput } from "@pravoletter/schemas";
+import { CreatePaymentInput, CreatePaymentOutput } from "@prodoki/schemas";
 import { router, protectedProcedure } from "../trpc";
 import { env } from "../../lib/env";
 

@@ -5,7 +5,7 @@ import { COMPANY, LEGAL_EFFECTIVE_DATE, LEGAL_VERSION } from "@/lib/legal";
 export const metadata = buildMetadata({
   title: "Политика обработки персональных данных",
   description:
-    "Политика обработки персональных данных пользователей сервиса PravoLetter в соответствии с Федеральным законом № 152-ФЗ.",
+    "Политика обработки персональных данных пользователей сервиса ПроДоки в соответствии с Федеральным законом № 152-ФЗ.",
   path: "/legal/privacy",
 });
 

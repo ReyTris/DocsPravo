@@ -9,7 +9,7 @@ import type {
   NavigatorOutput,
   Style,
   StylizedOutput,
-} from "@pravoletter/schemas";
+} from "@prodoki/schemas";
 
 const STYLE_LABEL: Record<Exclude<Style, "normal">, { emoji: string; label: string }> = {
   gopnik: { emoji: "🧢", label: "Блатняк" },

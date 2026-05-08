@@ -5,7 +5,7 @@ import { ImageResponse } from "next/og";
  * Next.js автоматически отдаст её по /opengraph-image и подставит в метатеги.
  */
 export const runtime = "edge";
-export const alt = "PravoLetter — разбор писем от государства и банков";
+export const alt = "ПроДоки — разбор писем от государства и банков";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -42,7 +42,7 @@ export default function OpengraphImage() {
             📄
           </div>
           <div style={{ fontSize: 36, fontWeight: 700, letterSpacing: -0.5 }}>
-            PravoLetter
+            ПроДоки
           </div>
         </div>
 

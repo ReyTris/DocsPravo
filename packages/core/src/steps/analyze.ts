@@ -9,7 +9,7 @@ import {
   type AnalysisOutput,
   type ExtractOutput,
   type NavigatorOutput,
-} from "@pravoletter/schemas";
+} from "@prodoki/schemas";
 
 export const ANALYZE_PROMPT_VERSION = "analyze-simple-v4";
 

@@ -34,15 +34,15 @@ src/
 pnpm dev:worker
 
 # или
-pnpm --filter @pravoletter/worker dev
+pnpm --filter @prodoki/worker dev
 ```
 
 Скрипт `dev` обёрнут в `dotenv-cli`, читает корневой `.env`.
 
 ## Зависимости от других пакетов
 
-- `@pravoletter/core` — `runPipeline`, `createLLMProvider`.
-- `@pravoletter/db` — Prisma-клиент.
-- `@pravoletter/schemas` — типы.
+- `@prodoki/core` — `runPipeline`, `createLLMProvider`.
+- `@prodoki/db` — Prisma-клиент.
+- `@prodoki/schemas` — типы.
 
 При изменениях в этих пакетах ничего пересобирать не нужно — TypeScript-исходники переиспользуются напрямую (`tsx watch`).

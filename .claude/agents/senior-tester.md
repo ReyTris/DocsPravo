@@ -43,10 +43,10 @@ model: sonnet
 
 ## Команды
 ```
-pnpm --filter @pravoletter/web test
-pnpm --filter @pravoletter/worker test
-pnpm --filter @pravoletter/core test
-pnpm --filter @pravoletter/web exec playwright test
+pnpm --filter @prodoki/web test
+pnpm --filter @prodoki/worker test
+pnpm --filter @prodoki/core test
+pnpm --filter @prodoki/web exec playwright test
 pnpm evaluate           # прогон датасета через промт-цепочку
 pnpm typecheck && pnpm lint
 ```

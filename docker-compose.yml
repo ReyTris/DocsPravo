@@ -9,27 +9,27 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: pravoletter-postgres
+    container_name: prodoki-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: pravoletter
+      POSTGRES_DB: prodoki
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d pravoletter"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d prodoki"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   # GUI для базы — http://localhost:8080
-  # Вход: System=PostgreSQL, Server=postgres, User=postgres, Password=postgres, Database=pravoletter
+  # Вход: System=PostgreSQL, Server=postgres, User=postgres, Password=postgres, Database=prodoki
   adminer:
     image: adminer:4
-    container_name: pravoletter-adminer
+    container_name: prodoki-adminer
     restart: unless-stopped
     ports:
       - "8080:8080"

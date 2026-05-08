@@ -14,7 +14,7 @@ import {
   type NavigatorOutput,
   type Style,
   type StylizedOutput,
-} from "@pravoletter/schemas";
+} from "@prodoki/schemas";
 
 export const STYLIZE_PROMPT_VERSION = "stylize-v1";
 

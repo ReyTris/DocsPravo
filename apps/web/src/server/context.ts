@@ -7,7 +7,7 @@
  */
 
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
-import { prisma } from "@pravoletter/db";
+import { prisma } from "@prodoki/db";
 import { verifyAccessToken } from "../lib/jwt";
 
 export async function createContext({ req }: FetchCreateContextFnOptions) {

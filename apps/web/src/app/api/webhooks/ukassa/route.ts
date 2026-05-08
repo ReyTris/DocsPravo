@@ -3,7 +3,7 @@
  * Безопасность: HMAC-подпись (UKASSA_WEBHOOK_SECRET) и/или IP-белый список.
  */
 
-import { prisma } from "@pravoletter/db";
+import { prisma } from "@prodoki/db";
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "../../../../lib/env";

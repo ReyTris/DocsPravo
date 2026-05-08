@@ -11,8 +11,8 @@
 ## 2. Установка
 
 ```bash
-git clone <repo> pravoletter
-cd pravoletter
+git clone <repo> prodoki
+cd prodoki
 pnpm install
 ```
 
@@ -30,7 +30,7 @@ cp .env.example .env
 NODE_ENV=development
 PUBLIC_BASE_URL=http://localhost:3000
 
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pravoletter
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/prodoki
 AUTH_SECRET=$(openssl rand -base64 32)
 JWT_SECRET=$(openssl rand -base64 32)
 
@@ -45,9 +45,9 @@ JWT_SECRET=$(openssl rand -base64 32)
 Самый простой путь — Docker:
 
 ```bash
-docker run -d --name pravoletter-pg \
+docker run -d --name prodoki-pg \
   -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=pravoletter \
+  -e POSTGRES_DB=prodoki \
   -p 5432:5432 postgres:16
 ```
 

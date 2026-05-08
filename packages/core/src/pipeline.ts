@@ -23,7 +23,7 @@ import {
   validateExtract,
   type ValidationIssue,
 } from "./validators";
-import { type PipelineResult } from "@pravoletter/schemas";
+import { type PipelineResult } from "@prodoki/schemas";
 import type { LLMProvider } from "./providers/llm";
 
 export const PIPELINE_VERSION = "pipeline-v6-flat";

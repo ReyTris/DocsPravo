@@ -2,7 +2,7 @@
  * Валидаторы выходных данных, выполняющиеся ПОСЛЕ LLM. Защита от галлюцинаций и опасных формулировок.
  */
 
-import type { AnalysisOutput, ExtractOutput } from "@pravoletter/schemas";
+import type { AnalysisOutput, ExtractOutput } from "@prodoki/schemas";
 
 // Запрещённые в разборе обороты (нарушают принцип "информирование, а не консультация")
 const FORBIDDEN_PATTERNS: RegExp[] = [

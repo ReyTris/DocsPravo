@@ -12,7 +12,7 @@ import {
   RequestUploadUrlOutput,
   RequestUploadUrlsInput,
   RequestUploadUrlsOutput,
-} from "@pravoletter/schemas";
+} from "@prodoki/schemas";
 import { router, protectedProcedure } from "../trpc";
 import { presignUploadUrl } from "../../lib/storage";
 import { enqueuePipelineJob } from "../services/jobs";

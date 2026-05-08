@@ -1,5 +1,5 @@
 import type { LLMProvider } from "../providers/llm";
-import { ExtractOutputSchema, type ExtractOutput } from "@pravoletter/schemas";
+import { ExtractOutputSchema, type ExtractOutput } from "@prodoki/schemas";
 
 export const EXTRACT_PROMPT_VERSION = "extract-universal-v2";
 

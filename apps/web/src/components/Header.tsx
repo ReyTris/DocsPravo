@@ -180,7 +180,7 @@ export function Header() {
           <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] text-[15px] font-extrabold text-white">
             П
           </span>
-          Правописьмо
+          ПроДоки
         </Link>
 
         <nav className="ml-6 hidden items-center gap-5 text-[14px] text-[var(--muted)] lg:flex">

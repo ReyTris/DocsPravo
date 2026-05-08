@@ -2,7 +2,7 @@
  * Автоудаление документов старше 30 дней (152-ФЗ — минимизация хранения).
  */
 
-import { prisma } from "@pravoletter/db";
+import { prisma } from "@prodoki/db";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { env } from "../env";
 

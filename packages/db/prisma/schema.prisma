@@ -1,4 +1,4 @@
-// Prisma schema для PravoLetter
+// Prisma schema для ПроДоки
 // Расширяется по мере роста — для MVP покрывает users, documents, analyses, payments, deadlines, audit.
 
 generator client {
@@ -173,7 +173,7 @@ model Analysis {
   documentId String   @db.Uuid
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
-  // Полный JSON-результат пайплайна (PipelineResult из @pravoletter/schemas)
+  // Полный JSON-результат пайплайна (PipelineResult из @prodoki/schemas)
   result             Json
   // Для быстрых выборок — продублированы ключевые поля
   status             String

@@ -27,7 +27,7 @@ export function Footer() {
               <span className="grid h-7 w-7 place-items-center rounded-[8px] bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] text-[13px] font-extrabold text-white">
                 П
               </span>
-              Правописьмо
+              ПроДоки
             </div>
             <p className="mt-3 text-[13px] leading-[1.6] text-[var(--muted)]">
               AI-сервис разбора писем от ФНС, ФССП, ГИБДД, банков, ЖКХ и судов.

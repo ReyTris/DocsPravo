@@ -2,15 +2,15 @@
  * Главный job: OCR всех файлов документа → промт-цепочка → запись результата.
  */
 
-import { prisma, refundDocument, type Prisma } from "@pravoletter/db";
+import { prisma, refundDocument, type Prisma } from "@prodoki/db";
 import {
   runPipeline,
   PIPELINE_VERSION,
   runVisionPipeline,
   VISION_PIPELINE_VERSION,
   stylize,
-} from "@pravoletter/core";
-import type { PipelineResult, Style } from "@pravoletter/schemas";
+} from "@prodoki/core";
+import type { PipelineResult, Style } from "@prodoki/schemas";
 import { downloadObject } from "../storage";
 import { ocrDocument, preprocessImage } from "../ocr";
 import { getProvider } from "../llm";

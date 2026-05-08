@@ -3,7 +3,7 @@
  * Для MVP — простой вариант "за 1 день". Email-провайдер подключаем отдельно.
  */
 
-import { prisma } from "@pravoletter/db";
+import { prisma } from "@prodoki/db";
 
 export async function handleReminderTick(): Promise<void> {
   const now = new Date();

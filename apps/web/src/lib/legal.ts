@@ -22,13 +22,13 @@ export const COMPANY = {
   shortName:
     process.env.NEXT_PUBLIC_COMPANY_SHORT_NAME ?? "ИП [ФИО]",
   // Бренд (отображается пользователю).
-  brand: "PravoLetter / Правописьмо",
+  brand: "ПроДоки",
   inn: process.env.NEXT_PUBLIC_COMPANY_INN ?? "[ИНН не указан]",
   ogrn: process.env.NEXT_PUBLIC_COMPANY_OGRN ?? "[ОГРН/ОГРНИП не указан]",
   address:
     process.env.NEXT_PUBLIC_COMPANY_ADDRESS ??
     "[Юридический адрес: индекс, регион, город, улица, дом]",
-  email: process.env.NEXT_PUBLIC_COMPANY_EMAIL ?? "support@pravoletter.ru",
+  email: process.env.NEXT_PUBLIC_COMPANY_EMAIL ?? "support@prodoki.ru",
   phone: process.env.NEXT_PUBLIC_COMPANY_PHONE ?? "",
   // Режим работы службы поддержки.
   workingHours:
