@@ -269,7 +269,7 @@ function NavigatorBlock({
           </ul>
         </div>
       )}
-      {nav.is_likely_phishing && nav.fraud_action_plan && nav.fraud_action_plan.length > 0 && (
+      {nav.is_likely_phishing && nav.fraud_action_plan && nav.fraud_action_plan.length > 0 ? (
         <div className="mt-3 rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/5 p-4">
           <div className="font-semibold text-[var(--danger)]">🚨 Что делать прямо сейчас</div>
           <ol className="mt-3 space-y-3">
@@ -286,8 +286,54 @@ function NavigatorBlock({
             ))}
           </ol>
         </div>
+      ) : (
+        <FraudAwarenessBlock />
       )}
     </section>
+  );
+}
+
+const FRAUD_STEPS = [
+  {
+    step: "Не платите и не перезванивайте",
+    detail:
+      "Не переводите деньги и не звоните по номерам из документа, пока не убедитесь в его подлинности.",
+  },
+  {
+    step: "Проверьте отправителя по официальным каналам",
+    detail:
+      "Найдите контакты ведомства или организации на их официальном сайте (nalog.gov.ru, fssp.gov.ru, gosuslugi.ru) и уточните, действительно ли вам направляли этот документ.",
+  },
+  {
+    step: "Сообщите в банк, если просили перевод или данные карты",
+    detail:
+      "Позвоните на горячую линию вашего банка (номер на обороте карты) и сообщите о подозрительном запросе.",
+  },
+  {
+    step: "Подайте заявление в полицию",
+    detail:
+      "Звоните 102 или оставьте обращение на сайте МВД (мвд.рф). Сохраните документ — он понадобится как доказательство.",
+  },
+];
+
+function FraudAwarenessBlock() {
+  return (
+    <details className="mt-4 rounded-md border border-white/10 bg-white/3 text-sm">
+      <summary className="cursor-pointer select-none px-4 py-3 font-semibold text-[var(--muted)] hover:text-[var(--text)]">
+        🛡️ Что делать, если подозреваете мошенничество
+      </summary>
+      <ol className="space-y-2 px-4 pb-4 pt-2">
+        {FRAUD_STEPS.map((s, i) => (
+          <li key={i} className="flex gap-2">
+            <span className="shrink-0 font-semibold text-[var(--muted)]">{i + 1}.</span>
+            <div>
+              <div className="font-medium text-[var(--text)]">{s.step}</div>
+              <p className="mt-0.5 text-[var(--muted)]">{s.detail}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }
 
