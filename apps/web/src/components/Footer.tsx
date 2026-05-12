@@ -36,7 +36,10 @@ export function Footer() {
             <div className="mt-4 space-y-1 text-[13px] text-[var(--muted)]">
               <div>{COMPANY.legalName}</div>
               <div>
-                ИНН: {COMPANY.inn} · ОГРН/ОГРНИП: {COMPANY.ogrn}
+                ИНН: {COMPANY.inn}
+                {COMPANY.ogrn && !COMPANY.ogrn.startsWith("[") && (
+                  <> · ОГРН/ОГРНИП: {COMPANY.ogrn}</>
+                )}
               </div>
               <div>{COMPANY.address}</div>
               <div>
