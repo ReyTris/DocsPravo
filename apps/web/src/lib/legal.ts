@@ -17,17 +17,17 @@ export const COMPANY = {
   // Полное наименование исполнителя.
   legalName:
     process.env.NEXT_PUBLIC_COMPANY_LEGAL_NAME ??
-    "ИП [Фамилия Имя Отчество]",
+    "Шилеев Георгий Валерьевич",
   // Краткое наименование (как в реквизитах).
   shortName:
-    process.env.NEXT_PUBLIC_COMPANY_SHORT_NAME ?? "ИП [ФИО]",
+    process.env.NEXT_PUBLIC_COMPANY_SHORT_NAME ?? "ИП Шилеев Г.В.",
   // Бренд (отображается пользователю).
   brand: "ПроДоки",
-  inn: process.env.NEXT_PUBLIC_COMPANY_INN ?? "[ИНН не указан]",
+  inn: process.env.NEXT_PUBLIC_COMPANY_INN ?? "732772232618",
   ogrn: process.env.NEXT_PUBLIC_COMPANY_OGRN ?? "[ОГРН/ОГРНИП не указан]",
   address:
     process.env.NEXT_PUBLIC_COMPANY_ADDRESS ??
-    "[Юридический адрес: индекс, регион, город, улица, дом]",
+    "г. Ульяновск",
   email: process.env.NEXT_PUBLIC_COMPANY_EMAIL ?? "support@prodoki.ru",
   phone: process.env.NEXT_PUBLIC_COMPANY_PHONE ?? "",
   // Режим работы службы поддержки.
