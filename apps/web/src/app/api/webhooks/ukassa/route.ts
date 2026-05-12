@@ -3,7 +3,7 @@
  * Безопасность: HMAC-подпись (UKASSA_WEBHOOK_SECRET) и/или IP-белый список.
  */
 
-import { prisma } from "@prodoki/db";
+import { prisma, grantPurchase } from "@prodoki/db";
 import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "../../../../lib/env";
@@ -95,20 +95,30 @@ export async function POST(req: Request) {
   if (!ukassaId) return NextResponse.json({ ok: true });
 
   if (body.event === "payment.succeeded") {
-    // Атомарный update с фильтром по documentId (если пришёл) и текущим статусом —
-    // защита от race-condition при повторных доставках и от подмены documentId.
     const docId = body.object.metadata?.documentId;
-    const result = await prisma.payment.updateMany({
-      where: {
-        ukassaId,
-        status: { not: "succeeded" },
-        ...(docId ? { documentId: docId } : {}),
-      },
-      data: { status: "succeeded", paidAt: new Date() },
-    });
-    if (result.count === 0) {
-      // Либо повторная доставка, либо подозрительный webhook.
+    const payment = await prisma.payment.findUnique({ where: { ukassaId } });
+
+    if (!payment || payment.status === "succeeded") {
       console.warn(`[ukassa] no-op for ${ukassaId} (already succeeded or not found)`);
+    } else {
+      await prisma.$transaction(async (tx) => {
+        await tx.payment.updateMany({
+          where: {
+            ukassaId,
+            status: { not: "succeeded" },
+            ...(docId ? { documentId: docId } : {}),
+          },
+          data: { status: "succeeded", paidAt: new Date() },
+        });
+
+        if (payment.pagesGranted && payment.pagesGranted > 0) {
+          await grantPurchase(tx, {
+            userId: payment.userId,
+            paymentId: payment.id,
+            pages: payment.pagesGranted,
+          });
+        }
+      });
     }
   } else if (body.event === "payment.canceled") {
     await prisma.payment.updateMany({

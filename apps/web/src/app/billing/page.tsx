@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { hasSession } from "@/lib/auth-client";
 
@@ -12,6 +12,9 @@ function formatRub(kopecks: number): string {
 
 export default function BillingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [buyingId, setBuyingId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!hasSession()) router.replace("/login");
   }, [router]);
@@ -20,9 +23,19 @@ export default function BillingPage() {
     refetchOnWindowFocus: true,
   });
   const packagesQuery = trpc.pages.packages.useQuery();
+  const buyMutation = trpc.pages.buy.useMutation({
+    onSuccess: (data) => {
+      window.location.href = data.confirmationUrl;
+    },
+    onError: (err) => {
+      setBuyingId(null);
+      alert(err.message);
+    },
+  });
 
   const balance = balanceQuery.data?.balance ?? 0;
   const packages = packagesQuery.data ?? [];
+  const justPaid = searchParams.get("paid") === "1";
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
@@ -30,6 +43,12 @@ export default function BillingPage() {
       <p className="mt-2 text-sm text-[var(--muted)]">
         1 страница PDF или 1 фото = 1 страница списания. Страницы не сгорают.
       </p>
+
+      {justPaid && (
+        <div className="mt-4 rounded-md border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-400">
+          Оплата прошла успешно. Страницы будут зачислены в течение минуты.
+        </div>
+      )}
 
       <div className="mt-4 rounded-md border border-white/10 bg-white/5 p-3 text-sm">
         Текущий баланс:{" "}
@@ -53,11 +72,14 @@ export default function BillingPage() {
                 {formatRub(pricePerPage)} за страницу
               </div>
               <button
-                disabled
-                title="Покупка пакетов будет включена позже"
-                className="mt-4 rounded-md bg-black px-4 py-2 text-sm text-white disabled:bg-gray-500"
+                disabled={buyMutation.isPending && buyingId === p.id}
+                onClick={() => {
+                  setBuyingId(p.id);
+                  buyMutation.mutate({ packageId: p.id as "pages_3" | "pages_10" | "pages_30" });
+                }}
+                className="mt-4 rounded-md bg-black px-4 py-2 text-sm text-white hover:bg-gray-800 disabled:opacity-50"
               >
-                Скоро
+                {buyMutation.isPending && buyingId === p.id ? "Перенаправление…" : "Купить"}
               </button>
             </div>
           );
