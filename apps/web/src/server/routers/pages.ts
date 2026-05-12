@@ -75,7 +75,7 @@ export const pagesRouter = router({
             amount: { value: (pkg.priceKopecks / 100).toFixed(2), currency: "RUB" },
             confirmation: {
               type: "redirect",
-              return_url: `${e.PUBLIC_BASE_URL}/billing?paid=1`,
+              return_url: `${e.PUBLIC_BASE_URL}/upload?paid=1`,
             },
             capture: true,
             description: `Пакет страниц: ${pkg.pages} шт.`,

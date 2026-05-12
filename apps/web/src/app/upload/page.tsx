@@ -1,10 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, type DragEvent, type ChangeEvent } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect, useCallback, useRef, type DragEvent, type ChangeEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { hasSession } from "@/lib/auth-client";
 import type { Style } from "@prodoki/schemas";
+
+function PaidBanner() {
+  const searchParams = useSearchParams();
+  if (searchParams.get("paid") !== "1") return null;
+  return (
+    <div className="mb-4 rounded-md border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-400">
+      Оплата прошла успешно. Страницы будут зачислены в течение минуты.
+    </div>
+  );
+}
 
 type StyleOption = {
   value: Style;
@@ -332,6 +342,9 @@ export default function UploadPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
+      <Suspense>
+        <PaidBanner />
+      </Suspense>
       <h1 className="text-2xl font-bold">Загрузить письмо</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
         PDF или фото письма. Можно несколько страниц/листов одного документа — они будут
