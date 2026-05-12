@@ -277,6 +277,9 @@ export const NavigatorOutputSchema = z.object({
   parties_masked: z.array(nullableString).describe("Стороны с замаскированными ПД"),
   is_likely_phishing: z.boolean(),
   phishing_reasons: z.array(z.string()),
+  fraud_action_plan: z
+    .array(z.object({ step: z.string(), detail: z.string() }))
+    .default([]),
 });
 export type NavigatorOutput = z.infer<typeof NavigatorOutputSchema>;
 

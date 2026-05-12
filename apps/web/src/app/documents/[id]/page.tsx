@@ -261,12 +261,30 @@ function NavigatorBlock({
       </dl>
       {nav.is_likely_phishing && nav.phishing_reasons.length > 0 && (
         <div className="mt-4 rounded-md border-l-4 border-[var(--danger)] bg-[var(--danger)]/10 p-3 text-sm">
-          <div className="font-semibold text-[var(--danger)]">⚠️ Возможные признаки фишинга</div>
+          <div className="font-semibold text-[var(--danger)]">⚠️ Возможные признаки мошенничества</div>
           <ul className="mt-1 list-disc pl-5 text-[var(--danger)]">
             {nav.phishing_reasons.map((r, i) => (
               <li key={i}>{r}</li>
             ))}
           </ul>
+        </div>
+      )}
+      {nav.is_likely_phishing && nav.fraud_action_plan && nav.fraud_action_plan.length > 0 && (
+        <div className="mt-3 rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/5 p-4">
+          <div className="font-semibold text-[var(--danger)]">🚨 Что делать прямо сейчас</div>
+          <ol className="mt-3 space-y-3">
+            {nav.fraud_action_plan.map((s, i) => (
+              <li key={i} className="rounded border border-[var(--danger)]/20 bg-[var(--danger)]/5 p-3">
+                <div className="flex gap-2">
+                  <span className="shrink-0 font-semibold text-[var(--danger)]">{i + 1}.</span>
+                  <div>
+                    <div className="font-semibold text-[var(--text)]">{s.step}</div>
+                    <p className="mt-1 text-sm text-[var(--muted)]">{s.detail}</p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       )}
     </section>

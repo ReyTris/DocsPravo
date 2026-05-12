@@ -209,6 +209,7 @@ const FEW_SHOT_INPUT: AnalyzeInput = {
     parties_masked: ["ИФНС России №14 по г. Москве", "[ФИО_1]"],
     is_likely_phishing: false,
     phishing_reasons: [],
+    fraud_action_plan: [],
   },
   extract: {
     sender: "ИФНС России №[ИНН_1] по г. Москве",

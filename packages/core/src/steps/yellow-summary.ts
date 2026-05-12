@@ -66,6 +66,7 @@ const FEW_SHOT_NAV: NavigatorOutput = {
   parties_masked: ["ООО «Трейд-логистик»", "ООО «Профит»"],
   is_likely_phishing: false,
   phishing_reasons: [],
+  fraud_action_plan: [],
 };
 
 const FEW_SHOT_TEXT = `ДОГОВОР ПОСТАВКИ № 17
