@@ -21,9 +21,9 @@ type Db = InstanceType<typeof PrismaClient> | Prisma.TransactionClient;
 export const SIGNUP_BONUS_PAGES = 1;
 
 export const PAGE_PACKAGES = {
-  pages_3: { pages: 3, priceKopecks: 100_00 },
-  pages_10: { pages: 10, priceKopecks: 200_00 },
-  pages_30: { pages: 30, priceKopecks: 400_00 },
+  pages_3: { pages: 3, priceKopecks: 99_00 },
+  pages_10: { pages: 10, priceKopecks: 199_00 },
+  pages_30: { pages: 30, priceKopecks: 399_00 },
 } as const satisfies Record<string, { pages: number; priceKopecks: number }>;
 
 export type PagePackageId = keyof typeof PAGE_PACKAGES;

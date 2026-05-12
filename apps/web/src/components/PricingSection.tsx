@@ -7,21 +7,21 @@ import { hasSession } from "@/lib/auth-client";
 const plans = [
   {
     pages: 3,
-    priceRub: 100,
+    priceRub: 99,
     perPage: "≈ 33 ₽ / страница",
     caption: "Попробовать",
     highlight: false,
   },
   {
     pages: 10,
-    priceRub: 200,
+    priceRub: 199,
     perPage: "20 ₽ / страница",
     caption: "Выгоднее всего",
     highlight: true,
   },
   {
     pages: 30,
-    priceRub: 400,
+    priceRub: 399,
     perPage: "≈ 13 ₽ / страница",
     caption: "Для пачки писем",
     highlight: false,
