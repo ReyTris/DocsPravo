@@ -1,6 +1,27 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from "@/lib/seo";
+import { SITE_NAME, SITE_URL, SITE_DESCRIPTION, SITE_TITLE_DEFAULT, SEO_KEYWORDS } from "@/lib/seo";
 import { PricingSection } from "@/components/PricingSection";
+
+export const metadata: Metadata = {
+  title: SITE_TITLE_DEFAULT,
+  description: SITE_DESCRIPTION,
+  keywords: SEO_KEYWORDS,
+  alternates: { canonical: SITE_URL + "/" },
+  openGraph: {
+    type: "website",
+    url: SITE_URL + "/",
+    siteName: SITE_NAME,
+    title: SITE_TITLE_DEFAULT,
+    description: SITE_DESCRIPTION,
+    locale: "ru_RU",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE_DEFAULT,
+    description: SITE_DESCRIPTION,
+  },
+};
 
 export default function HomePage() {
   return (

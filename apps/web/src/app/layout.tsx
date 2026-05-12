@@ -67,8 +67,12 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   // Подсказки для поисковиков, что страница на русском языке.
   other: {
-    "yandex-verification": process.env.YANDEX_VERIFICATION_TOKEN ?? "",
-    "google-site-verification": process.env.GOOGLE_SITE_VERIFICATION ?? "",
+    ...(process.env.YANDEX_VERIFICATION_TOKEN
+      ? { "yandex-verification": process.env.YANDEX_VERIFICATION_TOKEN }
+      : {}),
+    ...(process.env.GOOGLE_SITE_VERIFICATION
+      ? { "google-site-verification": process.env.GOOGLE_SITE_VERIFICATION }
+      : {}),
   },
 };
 

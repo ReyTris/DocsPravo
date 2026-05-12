@@ -20,6 +20,8 @@ export default function robots(): MetadataRoute.Robots {
           "/billing",
           "/login",
           "/register",
+          "/admin",
+          "/admin/",
         ],
       },
       // Яндексу даём те же правила явно — Yandex иногда странно интерпретирует "*"
@@ -34,6 +36,8 @@ export default function robots(): MetadataRoute.Robots {
           "/billing",
           "/login",
           "/register",
+          "/admin",
+          "/admin/",
         ],
       },
     ],
