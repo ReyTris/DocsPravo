@@ -3,15 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { hasSession } from "@/lib/auth-client";
+import { trpc } from "@/lib/trpc";
 
-const plans = [
-  {
-    pages: 3,
-    priceRub: 99,
-    perPage: "≈ 33 ₽ / страница",
-    caption: "Попробовать",
-    highlight: false,
-  },
+const paidPlans = [
   {
     pages: 10,
     priceRub: 199,
@@ -36,6 +30,41 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
   );
 }
 
+function FreePlanCard({ authed, balance }: { authed: boolean; balance: number | undefined }) {
+  let href = "/register";
+  let label = "Попробовать бесплатно →";
+
+  if (authed) {
+    if (balance !== undefined && balance > 0) {
+      href = "/upload";
+      label = "Разобрать документ →";
+    } else {
+      href = "/billing";
+      label = "Купить страницы →";
+    }
+  }
+
+  return (
+    <div className="relative flex flex-col rounded-[var(--radius)] border border-[var(--card-border)] bg-[var(--card)] p-[26px]">
+      <div className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+        Попробовать
+      </div>
+      <div className="mt-3 flex items-baseline gap-2">
+        <span className="text-[44px] font-extrabold leading-none tracking-[-0.02em]">1</span>
+        <span className="text-[15px] text-[var(--muted)]">страница</span>
+      </div>
+      <div className="mt-4 text-[28px] font-bold">Бесплатно</div>
+      <div className="text-[13px] text-[var(--muted)]">при регистрации</div>
+      <Link
+        href={href}
+        className="mt-6 inline-flex items-center justify-center rounded-xl border border-[var(--card-border)] px-5 py-3 text-[14px] font-semibold text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)]"
+      >
+        {label}
+      </Link>
+    </div>
+  );
+}
+
 export function PricingSection() {
   const [authed, setAuthed] = useState(false);
 
@@ -50,8 +79,13 @@ export function PricingSection() {
     };
   }, []);
 
-  const ctaHref = authed ? "/billing" : "/register";
-  const ctaLabel = authed ? "Купить страницы →" : "Начать бесплатно →";
+  const { data: balanceData } = trpc.pages.balance.useQuery(undefined, {
+    enabled: authed,
+    staleTime: 30_000,
+  });
+
+  const paidHref = authed ? "/billing" : "/register";
+  const paidLabel = authed ? "Купить страницы →" : "Начать бесплатно →";
 
   return (
     <section id="pricing" className="py-20">
@@ -64,7 +98,8 @@ export function PricingSection() {
           карты и подписки.
         </p>
         <div className="mt-6 grid gap-5 sm:grid-cols-3">
-          {plans.map((p) => (
+          <FreePlanCard authed={authed} balance={balanceData?.balance} />
+          {paidPlans.map((p) => (
             <div
               key={p.pages}
               className={
@@ -87,13 +122,13 @@ export function PricingSection() {
                   {p.pages}
                 </span>
                 <span className="text-[15px] text-[var(--muted)]">
-                  {p.pages === 1 ? "страница" : p.pages < 5 ? "страницы" : "страниц"}
+                  {p.pages < 5 ? "страницы" : "страниц"}
                 </span>
               </div>
               <div className="mt-4 text-[28px] font-bold">{p.priceRub} ₽</div>
               <div className="text-[13px] text-[var(--muted)]">{p.perPage}</div>
               <Link
-                href={ctaHref}
+                href={paidHref}
                 className={
                   "mt-6 inline-flex items-center justify-center rounded-xl px-5 py-3 text-[14px] font-semibold " +
                   (p.highlight
@@ -101,7 +136,7 @@ export function PricingSection() {
                     : "border border-[var(--card-border)] text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)]")
                 }
               >
-                {ctaLabel}
+                {paidLabel}
               </Link>
             </div>
           ))}
