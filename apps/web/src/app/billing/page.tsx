@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
@@ -10,7 +10,7 @@ function formatRub(kopecks: number): string {
   return `${(kopecks / 100).toLocaleString("ru-RU")} ₽`;
 }
 
-export default function BillingPage() {
+function BillingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [buyingId, setBuyingId] = useState<string | null>(null);
@@ -92,5 +92,13 @@ export default function BillingPage() {
         </Link>
       </p>
     </main>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <Suspense>
+      <BillingContent />
+    </Suspense>
   );
 }
