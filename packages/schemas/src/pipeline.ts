@@ -109,12 +109,12 @@ export const ExtractOutputSchema = z.object({
   document_number: z.string().nullish().transform((v) => v ?? null),
   document_date_iso: nullableIsoDate,
   subject_one_line: z.string().max(200).nullable().catch(null),
-  amounts: z.array(MoneySchema).default([]),
-  deadlines: z.array(DeadlineSchema).default([]),
-  legal_references: z.array(LegalReferenceSchema).default([]),
+  amounts: z.array(MoneySchema).catch([]),
+  deadlines: z.array(DeadlineSchema).catch([]),
+  legal_references: z.array(LegalReferenceSchema).catch([]),
   payment_details_present: z.boolean().nullable().catch(null),
   uin: z.string().nullish().transform((v) => v ?? null),
-  not_determined_fields: z.array(z.string()).default([]),
+  not_determined_fields: z.array(z.string()).catch([]),
 });
 export type ExtractOutput = z.infer<typeof ExtractOutputSchema>;
 

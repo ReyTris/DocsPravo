@@ -59,8 +59,8 @@ export interface VisionPipelineOptions {
  * необходимости жёстко ограничить — задать VISION_MAX_TOKENS в env.
  */
 export function computeVisionMaxTokens(pageCount: number): number {
-  const base = 8000;
-  const perPage = 2000;
+  const base = 12000;
+  const perPage = 4000;
   return base + Math.max(1, pageCount) * perPage;
 }
 

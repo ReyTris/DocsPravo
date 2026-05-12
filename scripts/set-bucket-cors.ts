@@ -56,6 +56,8 @@ async function main() {
               "http://localhost:3000",
               "https://*.prodoki.ru",
               "https://prodoki.ru",
+              "https://prodoki.online",
+              "https://www.prodoki.online",
             ],
             AllowedMethods: ["PUT", "GET", "HEAD", "DELETE"],
             AllowedHeaders: ["*"],
