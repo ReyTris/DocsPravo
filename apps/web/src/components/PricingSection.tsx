@@ -84,8 +84,10 @@ export function PricingSection() {
     staleTime: 30_000,
   });
 
-  const paidHref = authed ? "/billing" : "/register";
-  const paidLabel = authed ? "Купить страницы →" : "Начать бесплатно →";
+  const hasBalance = authed && balanceData !== undefined && balanceData.balance > 0;
+
+  const paidHref = hasBalance ? "/upload" : authed ? "/billing" : "/register";
+  const paidLabel = hasBalance ? "Разобрать документ →" : authed ? "Купить страницы →" : "Начать бесплатно →";
 
   return (
     <section id="pricing" className="py-20">
