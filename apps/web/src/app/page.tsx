@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from "@/lib/seo";
+import { PricingSection } from "@/components/PricingSection";
 
 export default function HomePage() {
   return (
@@ -411,89 +412,6 @@ function CasesSection() {
             </div>
           ))}
         </div>
-      </div>
-    </section>
-  );
-}
-
-function PricingSection() {
-  const plans = [
-    {
-      pages: 3,
-      priceRub: 100,
-      perPage: "≈ 33 ₽ / страница",
-      caption: "Попробовать",
-      highlight: false,
-    },
-    {
-      pages: 10,
-      priceRub: 200,
-      perPage: "20 ₽ / страница",
-      caption: "Выгоднее всего",
-      highlight: true,
-    },
-    {
-      pages: 30,
-      priceRub: 400,
-      perPage: "≈ 13 ₽ / страница",
-      caption: "Для пачки писем",
-      highlight: false,
-    },
-  ];
-  return (
-    <section id="pricing" className="py-20">
-      <div className="mx-auto max-w-[1120px] px-6">
-        <Eyebrow>Тарифы</Eyebrow>
-        <p className="mt-2 max-w-[680px] text-[15px] text-[var(--muted)]">
-          При регистрации мы дарим <span className="font-semibold text-[var(--text)]">1 страницу бесплатно</span> —
-          этого хватит, чтобы разобрать одно письмо и понять, насколько сервис вам подходит. Без карты и подписки.
-        </p>
-        <div className="mt-6 grid gap-5 sm:grid-cols-3">
-          {plans.map((p) => (
-            <div
-              key={p.pages}
-              className={
-                "relative flex flex-col rounded-[var(--radius)] p-[26px] " +
-                (p.highlight
-                  ? "border border-[rgba(108,140,255,0.5)] bg-gradient-to-br from-[rgba(108,140,255,0.12)] to-[rgba(157,108,255,0.12)] shadow-[0_20px_60px_-20px_rgba(108,140,255,0.45)]"
-                  : "border border-[var(--card-border)] bg-[var(--card)]")
-              }
-            >
-              {p.highlight && (
-                <span className="absolute -top-3 left-[26px] rounded-full bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-white">
-                  Хит
-                </span>
-              )}
-              <div className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
-                {p.caption}
-              </div>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-[44px] font-extrabold leading-none tracking-[-0.02em]">
-                  {p.pages}
-                </span>
-                <span className="text-[15px] text-[var(--muted)]">
-                  {p.pages === 1 ? "страница" : p.pages < 5 ? "страницы" : "страниц"}
-                </span>
-              </div>
-              <div className="mt-4 text-[28px] font-bold">{p.priceRub} ₽</div>
-              <div className="text-[13px] text-[var(--muted)]">{p.perPage}</div>
-              <Link
-                href="/register"
-                className={
-                  "mt-6 inline-flex items-center justify-center rounded-xl px-5 py-3 text-[14px] font-semibold " +
-                  (p.highlight
-                    ? "btn-brand"
-                    : "border border-[var(--card-border)] text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)]")
-                }
-              >
-                Начать бесплатно →
-              </Link>
-            </div>
-          ))}
-        </div>
-        <p className="mt-6 text-[13px] text-[var(--muted)]">
-          Не сгорают · Без подписки
-        </p>
       </div>
     </section>
   );
