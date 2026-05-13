@@ -50,7 +50,7 @@ function BillingContent() {
         </div>
       )}
 
-      <div className="mt-4 rounded-md border border-white/10 bg-white/5 p-3 text-sm">
+      <div className="mt-4 rounded-md border border-[var(--card-border)] bg-[var(--card)] p-3 text-sm">
         Текущий баланс:{" "}
         <span className="font-semibold">
           {balanceQuery.isLoading ? "…" : balance}
@@ -63,7 +63,7 @@ function BillingContent() {
           return (
             <div
               key={p.id}
-              className="flex flex-col rounded-md border border-white/10 bg-white/5 p-4"
+              className="flex flex-col rounded-md border border-[var(--card-border)] bg-[var(--card)] p-4"
             >
               <div className="text-3xl font-bold">{p.pages}</div>
               <div className="text-sm text-[var(--muted)]">страниц</div>

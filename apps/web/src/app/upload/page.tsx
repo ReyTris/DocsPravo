@@ -351,7 +351,7 @@ export default function UploadPage() {
         объединены в один разбор. Либо вставьте текст вручную.
       </p>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-white/10 bg-white/5 p-3 text-sm">
+      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-[var(--card-border)] bg-[var(--card)] p-3 text-sm">
         <span className="text-[var(--muted)]">Баланс:</span>
         <span className="font-semibold">
           {balanceLoading
@@ -361,7 +361,7 @@ export default function UploadPage() {
         <button
           type="button"
           onClick={() => router.push("/billing")}
-          className="ml-auto rounded-md border border-white/20 px-3 py-1 text-xs hover:bg-white/10"
+          className="ml-auto rounded-md border border-[var(--card-border)] px-3 py-1 text-xs hover:bg-[var(--surface-hover)]"
         >
           Купить страницы
         </button>
@@ -398,7 +398,7 @@ export default function UploadPage() {
         </div>
       </div>
 
-      <div role="tablist" className="mt-6 inline-flex rounded-md border border-white/10 p-1 text-sm">
+      <div role="tablist" className="mt-6 inline-flex rounded-md border border-[var(--card-border)] p-1 text-sm">
         <button
           role="tab"
           aria-selected={mode === "files"}
@@ -409,7 +409,7 @@ export default function UploadPage() {
           disabled={uploading}
           className={
             "rounded px-4 py-2 " +
-            (mode === "files" ? "bg-white/10 font-medium" : "text-[var(--muted)] hover:bg-white/5")
+            (mode === "files" ? "bg-[var(--surface-hover)] font-medium" : "text-[var(--muted)] hover:bg-[var(--surface-hover)]")
           }
         >
           Файлы
@@ -424,7 +424,7 @@ export default function UploadPage() {
           disabled={uploading}
           className={
             "rounded px-4 py-2 " +
-            (mode === "text" ? "bg-white/10 font-medium" : "text-[var(--muted)] hover:bg-white/5")
+            (mode === "text" ? "bg-[var(--surface-hover)] font-medium" : "text-[var(--muted)] hover:bg-[var(--surface-hover)]")
           }
         >
           Текст
@@ -450,7 +450,7 @@ export default function UploadPage() {
                   "flex flex-col items-start gap-1 rounded-md border p-3 text-left text-sm transition " +
                   (active
                     ? "border-[var(--brand)] bg-[var(--brand)]/10 ring-1 ring-[var(--brand)]"
-                    : "border-white/10 bg-white/5 hover:bg-white/10")
+                    : "border-[var(--card-border)] bg-[var(--card)] hover:bg-[var(--surface-hover)]")
                 }
               >
                 <span className="text-lg">{opt.emoji}</span>
@@ -469,7 +469,7 @@ export default function UploadPage() {
           aria-label="Зона перетаскивания файлов"
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
-          className="mt-6 rounded-xl border-2 border-dashed p-8 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-white/30"
+          className="mt-6 rounded-xl border-2 border-dashed border-[var(--card-border)] p-8 text-center hover:border-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30"
         >
           <p className="text-sm text-[var(--muted)]">Перетащите файлы сюда</p>
           <label className="mt-3 inline-block cursor-pointer rounded-md bg-black px-4 py-2 text-sm text-white">
@@ -509,7 +509,7 @@ export default function UploadPage() {
               disabled={uploading}
               maxLength={255}
               placeholder="Например: Требование ФНС от 12.03.2026"
-              className="mt-1 w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-[var(--card-border)] bg-[var(--bg-2)] px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -524,7 +524,7 @@ export default function UploadPage() {
               maxLength={MAX_TEXT_LEN}
               rows={14}
               placeholder="Вставьте сюда полный текст письма / документа..."
-              className="mt-1 w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 font-mono text-sm"
+              className="mt-1 w-full rounded-md border border-[var(--card-border)] bg-[var(--bg-2)] px-3 py-2 font-mono text-sm"
             />
             <div className="mt-1 text-right text-xs text-[var(--muted)]">
               {text.length.toLocaleString("ru-RU")} / {MAX_TEXT_LEN.toLocaleString("ru-RU")}
@@ -572,7 +572,7 @@ export default function UploadPage() {
           {files.map((f, idx) => (
             <li
               key={`${f.name}_${f.size}_${idx}`}
-              className="flex items-center justify-between rounded-md border border-white/10 bg-white/5 p-3 text-sm"
+              className="flex items-center justify-between rounded-md border border-[var(--card-border)] bg-[var(--card)] p-3 text-sm"
             >
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{f.name}</div>
@@ -584,7 +584,7 @@ export default function UploadPage() {
                 <button
                   onClick={() => moveFile(idx, -1)}
                   disabled={idx === 0 || uploading}
-                  className="rounded px-2 py-1 text-[var(--muted)] hover:bg-white/10 disabled:opacity-30"
+                  className="rounded px-2 py-1 text-[var(--muted)] hover:bg-[var(--surface-hover)] disabled:opacity-30"
                   title="Выше"
                 >
                   ↑
@@ -592,7 +592,7 @@ export default function UploadPage() {
                 <button
                   onClick={() => moveFile(idx, 1)}
                   disabled={idx === files.length - 1 || uploading}
-                  className="rounded px-2 py-1 text-[var(--muted)] hover:bg-white/10 disabled:opacity-30"
+                  className="rounded px-2 py-1 text-[var(--muted)] hover:bg-[var(--surface-hover)] disabled:opacity-30"
                   title="Ниже"
                 >
                   ↓
@@ -600,7 +600,7 @@ export default function UploadPage() {
                 <button
                   onClick={() => removeFile(idx)}
                   disabled={uploading}
-                  className="rounded px-2 py-1 text-[var(--danger)] hover:bg-white/10 disabled:opacity-30"
+                  className="rounded px-2 py-1 text-[var(--danger)] hover:bg-[var(--surface-hover)] disabled:opacity-30"
                   title="Удалить"
                 >
                   ✕
@@ -623,7 +623,7 @@ export default function UploadPage() {
             className={
               "rounded-md border p-3 text-sm " +
               (isCounting
-                ? "border-white/10 bg-white/5 text-[var(--muted)]"
+                ? "border-[var(--card-border)] bg-[var(--card)] text-[var(--muted)]"
                 : enoughBalance
                   ? "border-green-500/30 bg-green-500/10"
                   : "border-red-500/40 bg-red-500/10")
@@ -670,7 +670,7 @@ export default function UploadPage() {
             {uploading && (
               <button
                 onClick={cancelUpload}
-                className="rounded-md border border-white/20 px-4 py-3 text-sm text-[var(--muted)] hover:bg-white/10"
+                className="rounded-md border border-[var(--card-border)] px-4 py-3 text-sm text-[var(--muted)] hover:bg-[var(--surface-hover)]"
               >
                 Отменить
               </button>
