@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_NAME, SITE_URL, SITE_DESCRIPTION, SITE_TITLE_DEFAULT, SEO_KEYWORDS } from "@/lib/seo";
 import { PricingSection } from "@/components/PricingSection";
+import { ExamplesSection } from "@/components/ExamplesSection";
 
 export const metadata: Metadata = {
   title: SITE_TITLE_DEFAULT,
@@ -31,6 +32,7 @@ export default function HomePage() {
       <ProblemSection />
       <FeaturesSection />
       <HowSection />
+      <ExamplesSection />
       <CasesSection />
       <PricingSection />
       <SafetySection />
