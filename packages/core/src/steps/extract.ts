@@ -101,12 +101,52 @@ const FEW_SHOT_OUTPUT: ExtractOutput = {
   not_determined_fields: [],
 };
 
+const FEW_SHOT_BANK_INPUT = `ПАО Сбербанк
+Менеджер [ФИО_1] <[EMAIL_1]>
+
+Счёт № id73205
+Дата выставления: 13.05.2026
+
+Получатель: [ФИО_2]
+Договор № [ДОГОВОР_1] от 10.01.2026
+
+Услуга: обслуживание расчётного счёта за май 2026 года.
+Сумма к оплате: 15 800 руб.
+Срок оплаты: до 28.02.2026.
+
+Оплатить можно в личном кабинете sberbank.ru или через мобильное приложение СберБанк Онлайн.
+Внимание: отправителя невозможно верифицировать автоматически. Перед оплатой проверьте счёт в приложении.`;
+
+const FEW_SHOT_BANK_OUTPUT: ExtractOutput = {
+  sender: "ПАО Сбербанк",
+  recipient_masked: "[ФИО_2]",
+  document_number: "id73205",
+  document_date_iso: "2026-05-13",
+  subject_one_line: "Счёт от Сбербанка на оплату обслуживания расчётного счёта за май 2026 года.",
+  amounts: [
+    { amount_rub: 15800, description: "Обслуживание расчётного счёта за май 2026" },
+  ],
+  deadlines: [
+    {
+      date_iso: "2026-02-28",
+      raw_text: "до 28.02.2026",
+      consequence: "",
+    },
+  ],
+  legal_references: [],
+  payment_details_present: false,
+  uin: null,
+  not_determined_fields: ["uin", "payment_details_present"],
+};
+
 export async function extract(provider: LLMProvider, maskedOcrText: string): Promise<ExtractOutput> {
   const result = await provider.complete({
     system: SYSTEM,
     messages: [
       { role: "user", content: FEW_SHOT_INPUT },
       { role: "assistant", content: JSON.stringify(FEW_SHOT_OUTPUT) },
+      { role: "user", content: FEW_SHOT_BANK_INPUT },
+      { role: "assistant", content: JSON.stringify(FEW_SHOT_BANK_OUTPUT) },
       { role: "user", content: maskedOcrText },
     ],
     schema: ExtractOutputSchema,

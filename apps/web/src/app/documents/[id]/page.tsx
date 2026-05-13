@@ -367,7 +367,7 @@ function AnalysisView({
       )}
 
       {a.title && (
-        <Block title="📝 Что это за документ">
+        <Block title="📝 Суть документа">
           <p className="text-base font-medium">{a.title}</p>
           {showStyled && stylized?.summary ? (
             <p className="mt-2 italic leading-relaxed text-[var(--text)]">

@@ -142,13 +142,23 @@ const SYSTEM = `Ты объясняешь официальные докумен�
 4. Если нашёл несоответствие между «рекламной» частью и сноской/мелким шрифтом —
    это всегда pitfall, минимум severity="warning".
 
-СТРУКТУРА ОТВЕТА (JSON по схеме)
+СТРУКТУРА ОТВЕТА (JSON по схеме, все поля обязательны)
 {
+  "mood": {
+    "tone": "calm" | "neutral" | "alarm",
+    "headline": "одна фраза, которая сразу снимает или поднимает тревогу"
+  },
   "title": "одна строка, что это за документ простыми словами",
-  "essence": "суть документа и зачем его прислали",
+  "essence": "суть документа и зачем его прислали (2-4 предложения)",
   "what_sender_wants": "чего конкретно хотят от получателя",
   "key_facts": [
     { "label": "короткое название поля", "value": "значение из документа" }
+  ],
+  "what_to_do_now": [
+    {
+      "step": "глагол в начале: что сделать (Откройте... / Проверьте... / Оплатите...)",
+      "detail": "1-2 предложения с конкретикой: где именно, какой раздел, какая кнопка"
+    }
   ],
   "critical_deadline": {
     "date_iso": "YYYY-MM-DD или null",
@@ -166,6 +176,10 @@ const SYSTEM = `Ты объясняешь официальные докумен�
       "explanation": "в чём подвох и как его обойти"
     }
   ],
+  "case_complexity": {
+    "level": "typical" | "complex",
+    "explanation": "1-2 предложения: почему типовой или сложный, на простом языке"
+  },
   "need_lawyer": {
     "required": true | false,
     "reasons": ["причины, привязанные к этому документу"]
@@ -334,14 +348,107 @@ const FEW_SHOT_OUTPUT: AnalysisOutput = {
   ],
 };
 
-// Бюджет под OCR-текст в analyze. Окно YandexGPT — 32768 токенов; SYSTEM +
-// few-shot + navigator/extract JSON + ответ модели съедают ~17–18k токенов.
-// Остаётся ~15k токенов на ocrText. При ~3 символах на токен (русский) это
-// ~45000 символов — берём с запасом 35000, чтобы не упираться у границы.
+const FEW_SHOT_BANK_INPUT: AnalyzeInput = {
+  navigator: {
+    sender_category: "bank",
+    sender_text: "ПАО Сбербанк",
+    document_kind_freeform: "Счёт № id73205 на оплату",
+    document_kind_normalized: "pretenziya_bank",
+    urgency: "medium",
+    short_summary:
+      "Вам пришло письмо от менеджера Сбербанка с выставленным счётом № id73205. Банк просит оплатить 15 800 ₽ по договору за май 2026 года в срок до 28 февраля 2026 года. В письме указано, что отправителя нельзя верифицировать автоматически — стоит проверить счёт в официальном приложении или личном кабинете банка перед оплатой.",
+    key_dates: [
+      { date_iso: "2026-02-28", raw_text: "до 28.02.2026", what_for: "Срок оплаты счёта" },
+    ],
+    key_amounts: [{ amount_rub: 15800, description: "Сумма счёта к оплате" }],
+    parties_masked: ["ПАО Сбербанк", "[ФИО_1]", "[ФИО_2]"],
+    is_likely_phishing: false,
+    phishing_reasons: [],
+    fraud_action_plan: [],
+  },
+  extract: {
+    sender: "ПАО Сбербанк",
+    recipient_masked: "[ФИО_2]",
+    document_number: "id73205",
+    document_date_iso: "2026-05-13",
+    subject_one_line: "Счёт от Сбербанка на оплату обслуживания расчётного счёта за май 2026 года.",
+    amounts: [{ amount_rub: 15800, description: "Обслуживание расчётного счёта за май 2026" }],
+    deadlines: [
+      { date_iso: "2026-02-28", raw_text: "до 28.02.2026", consequence: "" },
+    ],
+    legal_references: [],
+    payment_details_present: false,
+    uin: null,
+    not_determined_fields: ["uin", "payment_details_present"],
+  },
+  ocrText: "ПАО Сбербанк\nМенеджер [ФИО_1] <[EMAIL_1]>\nСчёт № id73205...",
+};
+
+const FEW_SHOT_BANK_OUTPUT: AnalysisOutput = {
+  mood: {
+    tone: "calm",
+    headline: "Это обычное письмо от банка. Проверьте счёт на сайте и оплатите, если нужно.",
+  },
+  title: "Счёт от Сбербанка",
+  essence:
+    "Вам пришло письмо от менеджера Сбербанка с выставленным счётом. Сумма и детали счёта находятся во вложении или по ссылке в письме. Это не требование суда или налоговой, а обычная банковская операция.",
+  what_sender_wants: "Банк хочет, чтобы вы посмотрели счёт и оплатили его, если он вам нужен.",
+  key_facts: [
+    { label: "Номер счёта", value: "id73205" },
+    { label: "Отправитель", value: "ПАО Сбербанк" },
+    { label: "Сумма", value: "15 800 ₽" },
+    { label: "Срок оплаты", value: "до 28.02.2026" },
+  ],
+  what_to_do_now: [
+    {
+      step: "Войдите в СберБанк Онлайн или личный кабинет на sberbank.ru",
+      detail: "Найдите счёт № id73205 в разделе «Документы» или «Счета» — так вы убедитесь, что письмо настоящее.",
+    },
+    {
+      step: "Сверьте сумму и реквизиты с тем, что в письме",
+      detail: "Если всё совпадает и счёт ожидаемый — оплатите там же, в приложении.",
+    },
+    {
+      step: "Сохраните подтверждение оплаты",
+      detail: "Скриншот или PDF из приложения — на случай спора с банком.",
+    },
+  ],
+  critical_deadline: null,
+  important_aspects: [
+    "Письмо пришло от менеджера банка — это нормально, но перед оплатой всегда проверяйте счёт через официальное приложение: мошенники умеют подделывать банковские письма.",
+    "Реквизиты для оплаты лучше брать из приложения, а не из письма.",
+  ],
+  pitfalls: [
+    {
+      severity: "warning",
+      title: "Отправитель письма не верифицирован автоматически",
+      explanation:
+        "В письме явно указано, что подлинность отправителя не подтверждена. Не платите по реквизитам из письма — проверьте счёт через официальное приложение или позвоните на горячую линию Сбербанка (900).",
+    },
+  ],
+  case_complexity: {
+    level: "typical",
+    explanation: "Обычный банковский счёт — такие выставляют ежедневно тысячами. Главное — проверить подлинность через официальный канал.",
+  },
+  need_lawyer: {
+    required: false,
+    reasons: ["Это стандартная банковская операция без юридических последствий при неоплате (кроме пени по договору, если она предусмотрена)."],
+  },
+  verify_in_original: [
+    "Счёт № id73205 отображается в личном кабинете Сбербанка.",
+    "Сумма в приложении совпадает с суммой в письме (15 800 ₽).",
+    "Реквизиты получателя — счёт юрлица, не карта физлица.",
+  ],
+};
+
+// Бюджет под OCR-текст в analyze. Окно YandexGPT — 32768 токенов.
+// SYSTEM + два few-shot + navigator/extract JSON + ответ (maxTokens=12000) ≈ 19k токенов.
+// Свободно для OCR: ~13 700 токенов → ~41 000 символов при ~3 символах на токен (русский).
+// Берём 32 000 с запасом — ниже не нужно, большинство документов значительно короче.
 // Стратегия: голова + хвост (в длинных документах резюме/итог часто в конце).
-const OCR_BUDGET_CHARS = 35000;
-const OCR_HEAD_CHARS = 22000;
-const OCR_TAIL_CHARS = 12000;
+const OCR_BUDGET_CHARS = 32000;
+const OCR_HEAD_CHARS = 21000;
+const OCR_TAIL_CHARS = 11000;
 
 function truncateOcrForAnalyze(ocrText: string): string {
   if (ocrText.length <= OCR_BUDGET_CHARS) return ocrText;
@@ -379,6 +486,8 @@ export async function analyze(
     messages: [
       { role: "user", content: userMessage(FEW_SHOT_INPUT) },
       { role: "assistant", content: JSON.stringify(FEW_SHOT_OUTPUT) },
+      { role: "user", content: userMessage(FEW_SHOT_BANK_INPUT) },
+      { role: "assistant", content: JSON.stringify(FEW_SHOT_BANK_OUTPUT) },
       { role: "user", content: userMessage({ navigator, extract: ext, ocrText: ocrTextBounded }) },
     ],
     schema: AnalysisOutputSchema,

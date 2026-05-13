@@ -230,9 +230,9 @@ export type Urgency = z.infer<typeof UrgencyEnum>;
 export const UrgencyTolerant = UrgencyEnum.catch("unknown");
 
 export const TierEnum = z.enum([
-  "green",   // полный разбор по специализированному промту (зелёный список типов)
-  "yellow",  // безопасный навигатор-пересказ + предупреждение "тип непрофильный"
-  "red",     // НЕ разбираем: суд, военкомат, уголовка, секретные
+  "green",   // полный разбор, тип в зелёном списке (ФНС-требования и уведомления)
+  "yellow",  // полный разбор, тип вне зелёного списка (банк, ЖКХ, частные)
+  "red",     // полный разбор + расширенные предупреждения в UI (суд, военкомат, уголовка)
 ]);
 export type Tier = z.infer<typeof TierEnum>;
 
@@ -416,6 +416,8 @@ export const PipelineResultSchema = z.object({
   classify: ClassifyOutputSchema.optional(),
   extract: ExtractOutputSchema.optional(),
   analysis: AnalysisOutputSchema.optional(),
+  // Краткий fallback-пересказ: появляется когда полный analyze недоступен
+  yellow_summary: YellowSummaryOutputSchema.optional(),
   stylized: StylizedOutputSchema.optional(),
   error: z.string().optional(),
   meta: z.object({
