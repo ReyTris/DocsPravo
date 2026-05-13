@@ -235,7 +235,7 @@ function HeroSection() {
               Без юриста · За 30 секунд · Без паники
             </span>
             <h1 className="mt-4 mb-4 text-[clamp(36px,5vw,56px)] font-extrabold leading-[1.08] tracking-[-0.02em]">
-              Письмо от налоговой?{" "}
+              Письмо от ФНС, ФССП или суда?{" "}
               <span className="hero-accent">Сначала выдохните.</span>
             </h1>
             <p className="mb-7 max-w-[540px] text-lg text-[var(--muted)]">
