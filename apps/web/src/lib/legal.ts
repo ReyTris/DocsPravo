@@ -28,7 +28,7 @@ export const COMPANY = {
   address:
     process.env.NEXT_PUBLIC_COMPANY_ADDRESS ??
     "г. Ульяновск",
-  email: process.env.NEXT_PUBLIC_COMPANY_EMAIL ?? "support@prodoki.online",
+  email: process.env.NEXT_PUBLIC_COMPANY_EMAIL ?? "prodoki.online@yandex.ru",
   phone: process.env.NEXT_PUBLIC_COMPANY_PHONE ?? "",
   // Режим работы службы поддержки.
   workingHours:
