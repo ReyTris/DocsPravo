@@ -41,11 +41,20 @@ export async function sendMail(msg: MailMessage): Promise<void> {
     );
     return;
   }
-  await transporter.sendMail({
-    from: e.SMTP_FROM,
-    to: msg.to,
-    subject: msg.subject,
-    text: msg.text,
-    html: msg.html,
-  });
+  try {
+    await transporter.sendMail({
+      from: e.SMTP_FROM,
+      to: msg.to,
+      subject: msg.subject,
+      text: msg.text,
+      html: msg.html,
+    });
+  } catch (err) {
+    // Не валим вызывающую процедуру — пользователю в любом случае возвращаем ok
+    // (анти-enumeration). Ошибку SMTP подробно пишем в лог для диагностики.
+    console.error(
+      `[mailer] SMTP send failed to=${msg.to} subject="${msg.subject}":`,
+      err,
+    );
+  }
 }
