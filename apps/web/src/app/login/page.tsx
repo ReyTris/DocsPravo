@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
 import { setAccess } from "@/lib/auth-client";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const justReset = searchParams.get("reset") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const login = trpc.auth.login.useMutation({
@@ -24,8 +26,12 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto max-w-md px-6 py-16">
-      <h1 className="text-2xl font-bold">Вход</h1>
+    <>
+      {justReset && (
+        <div className="mt-6 rounded-md bg-green-50 p-3 text-sm text-green-800">
+          Пароль обновлён. Войдите с новым паролем.
+        </div>
+      )}
       <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
         <div>
           <label htmlFor="email" className="block text-sm font-medium">
@@ -45,9 +51,14 @@ export default function LoginPage() {
           />
         </div>
         <div>
-          <label htmlFor="password" className="block text-sm font-medium">
-            Пароль
-          </label>
+          <div className="flex items-center justify-between">
+            <label htmlFor="password" className="block text-sm font-medium">
+              Пароль
+            </label>
+            <Link href="/forgot-password" className="text-sm underline text-[var(--muted)]">
+              Забыли пароль?
+            </Link>
+          </div>
           <input
             id="password"
             name="password"
@@ -79,6 +90,17 @@ export default function LoginPage() {
           Регистрация
         </Link>
       </p>
+    </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <main className="mx-auto max-w-md px-6 py-16">
+      <h1 className="text-2xl font-bold">Вход</h1>
+      <Suspense fallback={<div className="mt-6 text-sm text-[var(--muted)]">Загрузка...</div>}>
+        <LoginForm />
+      </Suspense>
     </main>
   );
 }

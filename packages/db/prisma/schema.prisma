@@ -25,11 +25,12 @@ model User {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  documents        Document[]
-  payments         Payment[]
-  refreshTokens    RefreshToken[]
-  consents         Consent[]
-  pageTransactions PageTransaction[]
+  documents           Document[]
+  payments            Payment[]
+  refreshTokens       RefreshToken[]
+  consents            Consent[]
+  pageTransactions    PageTransaction[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([email])
 }
@@ -51,6 +52,22 @@ model RefreshToken {
   ip        String?
 
   @@index([userId])
+}
+
+// Токен восстановления пароля. В БД хранится только sha256-хеш,
+// одноразовый: usedAt ставится при успешном reset.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+  ip        String?
+  userAgent String?
+
+  @@index([userId, createdAt])
 }
 
 // Согласие на обработку ПД (обязательно по 152-ФЗ)

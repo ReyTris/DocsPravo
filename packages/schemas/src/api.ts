@@ -42,6 +42,19 @@ export const AccessTokenResponse = z.object({
 });
 export type AccessTokenResponse = z.infer<typeof AccessTokenResponse>;
 
+export const ForgotPasswordInput = z.object({
+  email: z.string().email(),
+});
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordInput>;
+
+export const ResetPasswordInput = z.object({
+  token: z.string().min(32).max(128),
+  password: z.string().min(8).max(72),
+});
+export type ResetPasswordInput = z.infer<typeof ResetPasswordInput>;
+
+export const OkResponse = z.object({ ok: z.literal(true) });
+
 // ---------- Documents ----------
 
 export const DocumentStatus = z.enum([

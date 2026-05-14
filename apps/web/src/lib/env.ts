@@ -34,6 +34,12 @@ const EnvSchema = z.object({
   UKASSA_SHOP_ID: z.string().optional(),
   UKASSA_SECRET_KEY: z.string().optional(),
   UKASSA_WEBHOOK_SECRET: z.string().optional(),
+
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM: z.string().default("info@prodoki.ru"),
 });
 
 let cached: z.infer<typeof EnvSchema> | null = null;

@@ -1,15 +1,32 @@
 import argon2 from "argon2";
 import { TRPCError } from "@trpc/server";
-import { AccessTokenResponse, LoginInput, RegisterInput } from "@prodoki/schemas";
+import { createHash, randomBytes } from "node:crypto";
+import {
+  AccessTokenResponse,
+  ForgotPasswordInput,
+  LoginInput,
+  OkResponse,
+  RegisterInput,
+  ResetPasswordInput,
+} from "@prodoki/schemas";
 import { PrismaClient } from "@prodoki/db";
 import { router, publicProcedure } from "../trpc";
 import { generateRefreshToken, hashRefreshToken, signAccessToken } from "../../lib/jwt";
 import { env } from "../../lib/env";
 import { grantSignupBonus } from "../services/pages";
+import { sendMail } from "../../lib/mailer";
 import {
   buildClearRefreshCookie,
   buildSetRefreshCookie,
 } from "../../lib/auth-cookie";
+
+// Срок жизни ссылки восстановления — 1 час. Достаточно, чтобы письмо успело
+// дойти, и при этом узкое окно для перехвата.
+const PASSWORD_RESET_TTL_SEC = 60 * 60;
+
+function hashResetToken(plain: string): string {
+  return createHash("sha256").update(plain).digest("hex");
+}
 
 // OWASP-рекомендации argon2id (2024+). Фиксируем явно, чтобы апдейт библиотеки
 // не менял стоимость хеша незаметно.
@@ -172,6 +189,98 @@ export const authRouter = router({
    * Logout. Токен берём из cookie; даже если её нет — куку всё равно
    * выставим на удаление, чтобы вызов был идемпотентным.
    */
+  /**
+   * Запрос восстановления пароля. Всегда возвращает ok=true, даже если email
+   * не зарегистрирован — чтобы не было user enumeration по этой ручке.
+   */
+  forgotPassword: publicProcedure
+    .input(ForgotPasswordInput)
+    .output(OkResponse)
+    .mutation(async ({ ctx, input }) => {
+      const email = normalizeEmail(input.email);
+      const user = await ctx.db.user.findUnique({ where: { email } });
+      if (user && !user.deletedAt) {
+        // Инвалидируем все ранее выпущенные неиспользованные токены этого
+        // пользователя — действует только последний запрос.
+        await ctx.db.passwordResetToken.updateMany({
+          where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
+          data: { usedAt: new Date() },
+        });
+        const plain = randomBytes(32).toString("hex");
+        const tokenHash = hashResetToken(plain);
+        const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_SEC * 1000);
+        await ctx.db.passwordResetToken.create({
+          data: {
+            userId: user.id,
+            tokenHash,
+            expiresAt,
+            ip: ctx.ip ?? undefined,
+            userAgent: ctx.userAgent ?? undefined,
+          },
+        });
+        const url = `${env().PUBLIC_BASE_URL}/reset-password?token=${plain}`;
+        await sendMail({
+          to: user.email,
+          subject: "ПроДоки — восстановление пароля",
+          text:
+            `Здравствуйте!\n\n` +
+            `Вы запросили восстановление пароля на ПроДоки.\n` +
+            `Перейдите по ссылке, чтобы задать новый пароль (срок действия — 1 час):\n\n` +
+            `${url}\n\n` +
+            `Если вы не запрашивали восстановление — просто проигнорируйте письмо.`,
+          html:
+            `<p>Здравствуйте!</p>` +
+            `<p>Вы запросили восстановление пароля на ПроДоки.</p>` +
+            `<p><a href="${url}">Задать новый пароль</a> (срок действия — 1 час).</p>` +
+            `<p>Если вы не запрашивали восстановление — просто проигнорируйте письмо.</p>`,
+        });
+      }
+      return { ok: true as const };
+    }),
+
+  /**
+   * Установка нового пароля по одноразовому токену из письма.
+   * Параллельно отзываем все активные refresh-токены — старые сессии
+   * после смены пароля должны умереть.
+   */
+  resetPassword: publicProcedure
+    .input(ResetPasswordInput)
+    .output(OkResponse)
+    .mutation(async ({ ctx, input }) => {
+      const tokenHash = hashResetToken(input.token);
+      const passwordHash = await argon2.hash(input.password, ARGON2_OPTS);
+      await ctx.db.$transaction(async (tx) => {
+        const record = await tx.passwordResetToken.findUnique({
+          where: { tokenHash },
+        });
+        if (!record || record.usedAt || record.expiresAt < new Date()) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Ссылка недействительна или истекла",
+          });
+        }
+        const used = await tx.passwordResetToken.updateMany({
+          where: { id: record.id, usedAt: null },
+          data: { usedAt: new Date() },
+        });
+        if (used.count === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Ссылка уже была использована",
+          });
+        }
+        await tx.user.update({
+          where: { id: record.userId },
+          data: { passwordHash },
+        });
+        await tx.refreshToken.updateMany({
+          where: { userId: record.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      });
+      return { ok: true as const };
+    }),
+
   logout: publicProcedure.mutation(async ({ ctx }) => {
     const refreshToken = ctx.refreshTokenFromCookie;
     if (refreshToken) {
