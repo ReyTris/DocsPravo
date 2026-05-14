@@ -6,7 +6,5 @@
     </linearGradient>
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#g)"/>
-  <text x="32" y="34" text-anchor="middle" dominant-baseline="central"
-        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
-        font-size="40" font-weight="800" fill="#ffffff">П</text>
+  <path d="M18 18 H46 V46 H40 V24 H24 V46 H18 Z" fill="#ffffff"/>
 </svg>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { clearTokens, hasSession } from "@/lib/auth-client";
+import { logout, useSession } from "@/lib/auth-client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { trpc } from "@/lib/trpc";
 
@@ -129,20 +129,10 @@ const NAV_LINKS = [
 ];
 
 export function Header() {
-  const [authed, setAuthed] = useState(false);
+  const sessionStatus = useSession();
+  const authed = sessionStatus === "authenticated";
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const sync = () => setAuthed(hasSession());
-    sync();
-    window.addEventListener("auth-changed", sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener("auth-changed", sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -160,8 +150,8 @@ export function Header() {
     };
   }, [menuOpen]);
 
-  const handleLogout = () => {
-    clearTokens();
+  const handleLogout = async () => {
+    await logout();
     window.location.href = "/";
   };
 

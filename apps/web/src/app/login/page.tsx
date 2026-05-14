@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
-import { saveTokens } from "@/lib/auth-client";
+import { setAccess } from "@/lib/auth-client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const login = trpc.auth.login.useMutation({
     onSuccess: (data) => {
-      saveTokens(data);
+      setAccess(data);
       router.push("/documents");
     },
   });

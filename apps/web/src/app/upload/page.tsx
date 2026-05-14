@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useCallback, useRef, type DragEvent, type ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { hasSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 import type { Style } from "@prodoki/schemas";
 
 function PaidBanner() {
@@ -96,6 +96,8 @@ async function countPdfPages(file: File): Promise<number> {
 
 export default function UploadPage() {
   const router = useRouter();
+  const sessionStatus = useSession();
+  const authed = sessionStatus === "authenticated";
   const [mode, setMode] = useState<Mode>("files");
   const [files, setFiles] = useState<File[]>([]);
   const [pageCounts, setPageCounts] = useState<Record<string, PageCount>>({});
@@ -114,18 +116,14 @@ export default function UploadPage() {
     // Перезапрашиваем при возврате на вкладку — баланс мог измениться (покупка, возврат).
     refetchOnWindowFocus: true,
     staleTime: 10_000,
+    enabled: authed,
   });
   const balance = balanceQuery.data?.balance ?? 0;
   const balanceLoading = balanceQuery.isLoading;
 
   useEffect(() => {
-    if (!hasSession()) router.replace("/login");
-    const onAuthChanged = () => {
-      if (!hasSession()) router.replace("/login");
-    };
-    window.addEventListener("auth-changed", onAuthChanged);
-    return () => window.removeEventListener("auth-changed", onAuthChanged);
-  }, [router]);
+    if (sessionStatus === "unauthenticated") router.replace("/login");
+  }, [router, sessionStatus]);
 
   const onDrop = useCallback(
     (e: DragEvent<HTMLDivElement>) => {

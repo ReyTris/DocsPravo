@@ -4,21 +4,22 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { hasSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 
 export default function DocumentsListPage() {
   const router = useRouter();
+  const sessionStatus = useSession();
 
   useEffect(() => {
-    if (!hasSession()) router.replace("/login");
-    const onAuthChanged = () => {
-      if (!hasSession()) router.replace("/login");
-    };
-    window.addEventListener("auth-changed", onAuthChanged);
-    return () => window.removeEventListener("auth-changed", onAuthChanged);
-  }, [router]);
+    if (sessionStatus === "unauthenticated") router.replace("/login");
+  }, [router, sessionStatus]);
 
-  const list = trpc.documents.list.useQuery({ limit: 50 });
+  // Не дёргаем защищённый запрос, пока сессия не подтвердилась —
+  // иначе он стрельнёт 401 во время бутстрапа рефреша.
+  const list = trpc.documents.list.useQuery(
+    { limit: 50 },
+    { enabled: sessionStatus === "authenticated" },
+  );
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">

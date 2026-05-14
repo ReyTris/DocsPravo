@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { hasSession, getValidAccessToken } from "@/lib/auth-client";
+import { getValidAccessToken, useSession } from "@/lib/auth-client";
 
 const NAV = [
   { href: "/admin", label: "Дашборд", exact: true },
@@ -15,24 +15,36 @@ const NAV = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const sessionStatus = useSession();
 
   useEffect(() => {
-    async function checkAdmin() {
-      if (!hasSession()) {
+    if (sessionStatus === "unauthenticated") {
+      router.replace("/login");
+      return;
+    }
+    if (sessionStatus !== "authenticated") return;
+    // role хранится в access-токене — забираем уже валидный, не парсим
+    // потенциально протухший. Если рефреш не удался, getValidAccessToken
+    // сам выставит unauthenticated, и эффект отработает заново.
+    let cancelled = false;
+    (async () => {
+      const token = await getValidAccessToken();
+      if (cancelled) return;
+      if (!token) {
         router.replace("/login");
         return;
       }
       try {
-        const token = await getValidAccessToken();
-        if (!token) { router.replace("/login"); return; }
         const payload = JSON.parse(atob(token.split(".")[1]!));
         if (payload.role !== "admin") router.replace("/");
       } catch {
         router.replace("/login");
       }
-    }
-    checkAdmin();
-  }, [router]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router, sessionStatus]);
 
   return (
     <div className="flex min-h-screen bg-[var(--bg)]">

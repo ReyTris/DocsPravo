@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { hasSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 import { trpc } from "@/lib/trpc";
 
 const paidPlans = [
@@ -66,18 +65,7 @@ function FreePlanCard({ authed, balance }: { authed: boolean; balance: number | 
 }
 
 export function PricingSection() {
-  const [authed, setAuthed] = useState(false);
-
-  useEffect(() => {
-    const sync = () => setAuthed(hasSession());
-    sync();
-    window.addEventListener("auth-changed", sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener("auth-changed", sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
+  const authed = useSession() === "authenticated";
 
   const { data: balanceData } = trpc.pages.balance.useQuery(undefined, {
     enabled: authed,

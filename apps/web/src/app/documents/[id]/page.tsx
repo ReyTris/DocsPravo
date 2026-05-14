@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { hasSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 import type {
   AnalysisOutput,
   NavigatorOutput,
@@ -36,19 +36,16 @@ export default function DocumentPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params.id;
+  const sessionStatus = useSession();
 
   useEffect(() => {
-    if (!hasSession()) router.replace("/login");
-    const onAuthChanged = () => {
-      if (!hasSession()) router.replace("/login");
-    };
-    window.addEventListener("auth-changed", onAuthChanged);
-    return () => window.removeEventListener("auth-changed", onAuthChanged);
-  }, [router]);
+    if (sessionStatus === "unauthenticated") router.replace("/login");
+  }, [router, sessionStatus]);
 
   const doc = trpc.documents.getById.useQuery(
     { id },
     {
+      enabled: sessionStatus === "authenticated",
       refetchInterval: (q) => {
         const data = q.state.data;
         if (data && PROCESSING.has(data.status)) return 3000;

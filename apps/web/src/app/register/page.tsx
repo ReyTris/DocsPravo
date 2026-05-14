@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
-import { saveTokens } from "@/lib/auth-client";
+import { setAccess } from "@/lib/auth-client";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -15,7 +15,7 @@ export default function RegisterPage() {
   const [clientError, setClientError] = useState<string | null>(null);
   const register = trpc.auth.register.useMutation({
     onSuccess: (data) => {
-      saveTokens(data);
+      setAccess(data);
       router.push("/upload");
     },
   });

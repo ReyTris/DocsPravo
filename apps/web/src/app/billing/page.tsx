@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { hasSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 
 function formatRub(kopecks: number): string {
   return `${(kopecks / 100).toLocaleString("ru-RU")} ₽`;
@@ -15,14 +15,19 @@ function BillingContent() {
   const searchParams = useSearchParams();
   const [buyingId, setBuyingId] = useState<string | null>(null);
 
+  const sessionStatus = useSession();
   useEffect(() => {
-    if (!hasSession()) router.replace("/login");
-  }, [router]);
+    if (sessionStatus === "unauthenticated") router.replace("/login");
+  }, [router, sessionStatus]);
 
+  const authed = sessionStatus === "authenticated";
   const balanceQuery = trpc.pages.balance.useQuery(undefined, {
     refetchOnWindowFocus: true,
+    enabled: authed,
   });
-  const packagesQuery = trpc.pages.packages.useQuery();
+  const packagesQuery = trpc.pages.packages.useQuery(undefined, {
+    enabled: authed,
+  });
   const buyMutation = trpc.pages.buy.useMutation({
     onSuccess: (data) => {
       window.location.href = data.confirmationUrl;

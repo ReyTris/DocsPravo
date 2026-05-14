@@ -28,12 +28,19 @@ export const LoginInput = z.object({
 });
 export type LoginInput = z.infer<typeof LoginInput>;
 
-export const TokenPair = z.object({
+/**
+ * Ответ авторизационных мутаций (register / login / refresh).
+ *
+ * Refresh-токен НЕ возвращается в теле — он ставится сервером в httpOnly cookie
+ * (`pd_rt`) и недоступен JS, чтобы исключить кражу через XSS. Клиент держит
+ * только access-токен в памяти; при истечении вызывает `auth.refresh`, который
+ * сам прочитает cookie.
+ */
+export const AccessTokenResponse = z.object({
   accessToken: z.string(),
-  refreshToken: z.string(),
   expiresAt: z.number(),
 });
-export type TokenPair = z.infer<typeof TokenPair>;
+export type AccessTokenResponse = z.infer<typeof AccessTokenResponse>;
 
 // ---------- Documents ----------
 
