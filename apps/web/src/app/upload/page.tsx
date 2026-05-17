@@ -396,6 +396,37 @@ export default function UploadPage() {
         </div>
       </div>
 
+      <div
+        role="note"
+        className="mt-3 flex items-start gap-3 rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-[var(--text)]"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="mt-0.5 shrink-0 text-red-400"
+          aria-hidden
+        >
+          <circle cx="12" cy="12" r="10" />
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+        </svg>
+        <div className="leading-snug">
+          <div className="font-semibold">Не загружайте договоры с банками и юр.лицами</div>
+          <p className="mt-1 text-[var(--muted)]">
+            Почти во всех договорах с банками, страховыми, работодателями и компаниями есть
+            пункт о коммерческой тайне или конфиденциальности. Загрузка такого договора в любой
+            внешний сервис — это нарушение договора и ваша личная ответственность. Разбирайте
+            только свои личные документы: письма от госорганов, штрафы, претензии, ваши
+            собственные договоры (например, страховой полис, оформленный на вас).
+          </p>
+        </div>
+      </div>
+
       <div role="tablist" className="mt-6 inline-flex rounded-md border border-[var(--card-border)] p-1 text-sm">
         <button
           role="tab"
