@@ -23,11 +23,9 @@ export function Footer() {
       <div className="mx-auto max-w-[1120px] px-6 py-10">
         <div className="grid gap-8 md:grid-cols-[1.4fr_1fr_1fr]">
           <div>
-            <div className="flex items-center gap-2.5 font-bold text-[16px] text-[var(--text)]">
-              <span className="grid h-7 w-7 place-items-center rounded-[8px] bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] text-[13px] font-extrabold text-white">
-                П
-              </span>
-              ПроДоки
+            <div className="flex items-center font-extrabold text-[18px] tracking-tight">
+              <span className="text-[var(--brand)]">Про</span>
+              <span className="text-[var(--text)]">Доки</span>
             </div>
             <p className="mt-3 text-[13px] leading-[1.6] text-[var(--muted)]">
               AI-сервис разбора писем от ФНС, ФССП, ГИБДД, банков, ЖКХ и судов.

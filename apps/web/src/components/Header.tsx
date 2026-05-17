@@ -165,12 +165,11 @@ export function Header() {
       <div className="mx-auto flex max-w-[1120px] items-center gap-3 px-6 py-3.5">
         <Link
           href="/"
-          className="flex items-center gap-2.5 font-bold text-[18px] text-[var(--text)] no-underline"
+          aria-label="ПроДоки — на главную"
+          className="flex items-center font-extrabold text-[20px] tracking-tight no-underline"
         >
-          <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-gradient-to-br from-[var(--brand)] to-[var(--brand-2)] text-[15px] font-extrabold text-white">
-            П
-          </span>
-          ПроДоки
+          <span className="text-[var(--brand)]">Про</span>
+          <span className="text-[var(--text)]">Доки</span>
         </Link>
 
         <nav className="ml-6 hidden items-center gap-5 text-[14px] text-[var(--muted)] lg:flex">
